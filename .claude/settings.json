@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "additionalDirectories": [
+      "/Users/alokkumar/dev/hak-talent-mapping"
+    ],
+    "allow": [
+      "Bash(python *)",
+      "Bash(uv *)",
+      "Bash(pip *)",
+      "Bash(pytest *)",
+      "Bash(ruff *)",
+      "Bash(mypy *)",
+      "Bash(alembic *)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git branch*)"
+    ]
+  }
+}
