@@ -6,7 +6,7 @@ create table if not exists public.companies (
     id             bigserial primary key,
 
     -- Listing fields (populated in Phase 1)
-    company_id     text        not null unique,
+    company_id     text        not null,
     name           text        not null,
     slug           text        not null,
     sector         text        not null,
@@ -31,7 +31,10 @@ create table if not exists public.companies (
     updated_at          timestamptz not null default now()
 );
 
--- Index for fast lookups by company_id (already covered by UNIQUE, but explicit)
+-- Composite unique: one row per (company, sector) — same company can appear in multiple sectors
+create unique index if not exists companies_company_sector_idx on public.companies (company_id, sector);
+
+-- Index for fast lookups by company_id alone
 create index if not exists companies_company_id_idx on public.companies (company_id);
 
 -- Index for querying companies that still need detail scraping

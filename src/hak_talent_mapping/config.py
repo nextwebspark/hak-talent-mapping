@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import math
-
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,10 +16,9 @@ class Settings(BaseSettings):
 
     # Target site
     base_url: str = "https://www.zawya.com"
-    country: str = "AE"
-    sector: str = "Retailers"
-    total_companies: int = 6802
-    results_per_page: int = 10
+    country: str | None = None   # None = all countries (uses ZAWYA_COUNTRIES list)
+    sector: str | None = None    # None = no sector filter
+    results_per_page: int = 50
 
     # Concurrency & rate limiting
     listing_concurrency: int = 5
@@ -32,7 +29,3 @@ class Settings(BaseSettings):
 
     # Feature flags
     scrape_details: bool = True
-
-    @property
-    def total_pages(self) -> int:
-        return math.ceil(self.total_companies / self.results_per_page)

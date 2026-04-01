@@ -3,8 +3,14 @@
 Zawya company scraper — entry point.
 
 Usage:
-    # Phase 1: scrape all listing pages (fast, ~681 pages via httpx)
+    # Phase 1: scrape all countries, all sectors (httpx, stop-on-empty per country)
     python scripts/run_scraper.py listings
+
+    # Phase 1: single country, all sectors
+    python scripts/run_scraper.py listings --country AE
+
+    # Phase 1: single country + single sector
+    python scripts/run_scraper.py listings --country AE --sector Retailers
 
     # Phase 2: scrape company detail pages (slow, uses Playwright)
     python scripts/run_scraper.py details
@@ -29,7 +35,7 @@ from supabase import create_client
 sys.path.insert(0, "src")
 
 from hak_talent_mapping.config import Settings
-from hak_talent_mapping.core.models import CompanyDetail
+from hak_talent_mapping.core.models import Company, CompanyDetail
 from hak_talent_mapping.db.repository import CompanyRepository
 from hak_talent_mapping.services.detail_scraper import scrape_all_details
 from hak_talent_mapping.services.listing_scraper import scrape_all_listings
@@ -47,31 +53,41 @@ def _configure_logging() -> None:
         logger_factory=structlog.PrintLoggerFactory(),
     )
     logging.basicConfig(level=logging.WARNING)
+    # Suppress noisy asyncio pipe-closed warnings from Playwright browser shutdown
+    logging.getLogger("asyncio").setLevel(logging.ERROR)
 
 
 async def run_listings(settings: Settings, repo: CompanyRepository) -> None:
     """Phase 1 — scrape all listing pages and upsert into Supabase."""
     log = structlog.get_logger()
+    log.info(
+        "phase1_start",
+        country=settings.country or "all",
+        sector=settings.sector or "all",
+    )
 
-    log.info("phase1_start", total_pages=settings.total_pages)
-
-    # Resume: skip companies already in DB
     already_scraped = await repo.get_scraped_listing_ids_async()
     log.info("resume_info", already_scraped=len(already_scraped))
 
-    companies = await scrape_all_listings(settings, already_scraped=already_scraped)
+    total_upserted = 0
 
-    if not companies:
+    async def on_page(companies: list[Company]) -> None:
+        nonlocal total_upserted
+        await repo.upsert_many_async(companies)
+        total_upserted += len(companies)
+        log.info("page_upserted", count=len(companies), total_so_far=total_upserted)
+
+    total_found = await scrape_all_listings(
+        settings,
+        already_scraped=already_scraped,
+        on_page=on_page,
+    )
+
+    if total_found == 0:
         log.info("no_new_companies_found")
         return
 
-    # Upsert in batches of 200 to avoid hitting Supabase payload limits
-    batch_size = 200
-    for i in range(0, len(companies), batch_size):
-        batch = companies[i : i + batch_size]
-        await repo.upsert_many_async(batch)
-
-    log.info("phase1_complete", total_upserted=len(companies))
+    log.info("phase1_complete", total_upserted=total_upserted)
 
 
 async def run_details(
@@ -129,6 +145,20 @@ def main() -> None:
         metavar="N",
         help="Only scrape the first N companies (useful for testing details)",
     )
+    parser.add_argument(
+        "--country",
+        type=str,
+        default=None,
+        metavar="CODE",
+        help="Filter by country code (e.g. AE, SA). Default: all countries",
+    )
+    parser.add_argument(
+        "--sector",
+        type=str,
+        default=None,
+        metavar="SECTOR",
+        help="Filter by sector name (e.g. Retailers). Default: all sectors",
+    )
     args = parser.parse_args()
 
     try:
@@ -138,10 +168,25 @@ def main() -> None:
         log.error("hint", message="Copy .env.example to .env and fill in your credentials")
         sys.exit(1)
 
+    # Apply CLI filter overrides
+    overrides: dict[str, str | None] = {}
+    if args.country is not None:
+        overrides["country"] = args.country
+    if args.sector is not None:
+        overrides["sector"] = args.sector
+    if overrides:
+        settings = settings.model_copy(update=overrides)
+
     supabase_client = create_client(settings.supabase_url, settings.supabase_key)
     repo = CompanyRepository(supabase_client)
 
-    log.info("scraper_starting", phase=args.phase, limit=args.limit)
+    log.info(
+        "scraper_starting",
+        phase=args.phase,
+        limit=args.limit,
+        country=settings.country or "all",
+        sector=settings.sector or "all",
+    )
 
     try:
         if args.phase == "listings":
