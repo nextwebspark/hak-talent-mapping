@@ -16,8 +16,6 @@ class Settings(BaseSettings):
 
     # Target site
     base_url: str = "https://www.zawya.com"
-    country: str | None = None   # None = all countries (uses ZAWYA_COUNTRIES list)
-    sector: str | None = None    # None = no sector filter
     results_per_page: int = 50
 
     # Concurrency & rate limiting

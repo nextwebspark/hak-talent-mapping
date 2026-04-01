@@ -24,73 +24,6 @@ logger = structlog.get_logger()
 
 _LISTING_PATH = "/en/companies/find-companies"
 
-# All countries available on Zawya's find-companies filter dropdown.
-ZAWYA_COUNTRIES: list[tuple[str, str]] = [
-    ("AE", "United Arab Emirates"),
-    ("SA", "Saudi Arabia"),
-    ("IN", "India"),
-    ("DZ", "Algeria"),
-    ("AO", "Angola"),
-    ("BH", "Bahrain"),
-    ("CY", "Cyprus"),
-    ("EG", "Egypt"),
-    ("ET", "Ethiopia"),
-    ("IQ", "Iraq"),
-    ("IL", "Israel"),
-    ("JO", "Jordan"),
-    ("KE", "Kenya"),
-    ("KW", "Kuwait"),
-    ("LB", "Lebanon"),
-    ("MU", "Mauritius"),
-    ("MA", "Morocco"),
-    ("MZ", "Mozambique"),
-    ("NG", "Nigeria"),
-    ("OM", "Oman"),
-    ("PK", "Pakistan"),
-    ("QA", "Qatar"),
-    ("SC", "Seychelles"),
-    ("ZA", "South Africa"),
-    ("TZ", "Tanzania"),
-    ("TN", "Tunisia"),
-    ("TR", "Turkey"),
-    ("UG", "Uganda"),
-]
-
-# All sectors available on Zawya's find-companies filter dropdown.
-# Values are the option `value` attributes from the <select name="sector"> dropdown.
-ZAWYA_SECTORS: list[str] = [
-    "Academic & Educational Services",
-    "Applied Resources",
-    "Automobiles & Auto Parts",
-    "Banking & Investment Services",
-    "Chemicals",
-    "Collective Investments",
-    "Energy - Fossil Fuels",
-    "Financial Technology (Fintech) & Infrastructure",
-    "Food & Beverages",
-    "Food & Drug Retailing",
-    "Government Activity",
-    "Healthcare Services & Equipment",
-    "Cyclical Consumer Services",      # displayed as "Hotels & Entertainment"
-    "Industrial & Commercial Services",
-    "Industrial Goods",
-    "Institutions, Associations & Organizations",
-    "Insurance",
-    "Investment Holding Companies",
-    "Mineral Resources",
-    "Personal & Household Products & Services",
-    "Pharmaceuticals & Medical Research",
-    "Real Estate",
-    "Renewable Energy",
-    "Retailers",
-    "Software & IT Services",
-    "Technology Equipment",
-    "Telecommunications Services",
-    "Cyclical Consumer Products",      # displayed as "Textiles"
-    "Transportation",
-    "Utilities",
-]
-
 # Callback type: receives a page's worth of new companies for immediate persistence.
 OnPageCallback = Callable[[list[Company]], Awaitable[None]]
 
@@ -185,32 +118,26 @@ async def _fetch_page(
         ) from exc
 
 
-async def _scrape_pair(
+async def _fetch_all_pages(
     client: httpx.AsyncClient,
-    settings: Settings,
-    country_code: str,
+    country: str,
     sector: str,
-    already_scraped: set[tuple[str, str]],
-    on_page: OnPageCallback,
-) -> int:
+    settings: Settings,
+) -> list[Company]:
     """
-    Scrape all pages for one (country, sector) pair.
+    Paginate through all listing pages for a (country, sector) and return every company found.
 
-    Fetches pages in concurrent batches of `listing_concurrency`. After each batch,
-    calls on_page with the new companies so they can be persisted immediately.
-    Stops when a full batch returns no results (empty pages or all failures).
-
-    Returns the total number of new companies found.
+    Fetches pages in concurrent batches. Stops when a full batch returns no results.
+    Failed pages are skipped with a warning.
     """
-    log = logger.bind(country=country_code, sector=sector)
-    total = 0
+    log = logger.bind(country=country, sector=sector)
+    all_companies: list[Company] = []
     page = 1
-    failed_pages: list[int] = []
 
     async def fetch_one(p: int) -> list[Company]:
-        result = await _fetch_page(client, settings, country_code, sector, p)
+        companies = await _fetch_page(client, settings, country, sector, p)
         await random_delay(settings.request_delay_min, settings.request_delay_max)
-        return result
+        return companies
 
     while True:
         batch = list(range(page, page + settings.listing_concurrency))
@@ -220,86 +147,43 @@ async def _scrape_pair(
         for i, result in enumerate(results):
             if isinstance(result, Exception):
                 log.warning("page_failed_skipping", page=batch[i], error=str(result))
-                failed_pages.append(batch[i])
                 continue
-
-            companies: list[Company] = result
-            if not companies:
-                continue
-
-            batch_had_results = True
-            new = [c for c in companies if (c.company_id, c.sector) not in already_scraped]
-            if new:
-                already_scraped.update((c.company_id, c.sector) for c in new)
-                await on_page(new)
-                total += len(new)
+            if result:
+                batch_had_results = True
+                all_companies.extend(result)
 
         if not batch_had_results:
             break
         page += settings.listing_concurrency
 
-    if failed_pages:
-        log.warning(
-            "pair_complete_with_failures",
-            total=total,
-            failed_page_count=len(failed_pages),
-            failed_pages=sorted(failed_pages),
-        )
-    else:
-        log.info("pair_complete", total=total)
-    return total
+    return all_companies
 
 
-async def scrape_all_listings(
+async def scrape_listings(
+    country: str,
+    sector: str,
     settings: Settings,
     already_scraped: set[tuple[str, str]] | None = None,
     on_page: OnPageCallback | None = None,
 ) -> int:
     """
-    Scrape all (country, sector) pairs and return total new companies found.
+    Scrape all listing pages for a (country, sector) pair. Returns count of new companies.
 
-    Calls on_page after every page batch so results are persisted continuously
-    rather than buffered until the end.
-
-    Filters:
-    - settings.country: scrape only that country (default: all 28)
-    - settings.sector:  scrape only that sector  (default: all 21)
+    Deduplicates against already_scraped and calls on_page with each batch of new companies
+    so they can be persisted immediately.
     """
+    log = logger.bind(country=country, sector=sector)
     scraped_ids: set[tuple[str, str]] = already_scraped or set()
+    log.info("listing_scrape_started")
 
-    if settings.country:
-        name = next(
-            (n for code, n in ZAWYA_COUNTRIES if code == settings.country),
-            settings.country,
-        )
-        countries: list[tuple[str, str]] = [(settings.country, name)]
-    else:
-        countries = ZAWYA_COUNTRIES
-
-    sectors = [settings.sector] if settings.sector else ZAWYA_SECTORS
-
-    async def noop(companies: list[Company]) -> None:  # noqa: ARG001
-        pass
-
-    callback: OnPageCallback = on_page or noop
-
-    logger.info(
-        "listing_scrape_started",
-        countries=len(countries),
-        sectors=len(sectors),
-        pairs=len(countries) * len(sectors),
-        country=settings.country or "all",
-        sector=settings.sector or "all",
-    )
-
-    total = 0
     async with build_async_client() as client:
-        for country_code, country_name in countries:
-            for sector in sectors:
-                logger.info("pair_start", country=country_code, name=country_name, sector=sector)
-                total += await _scrape_pair(
-                    client, settings, country_code, sector, scraped_ids, callback
-                )
+        companies = await _fetch_all_pages(client, country, sector, settings)
 
-    logger.info("listing_scrape_complete", total_companies=total)
-    return total
+    new_companies = [c for c in companies if (c.company_id, c.sector) not in scraped_ids]
+
+    if on_page and new_companies:
+        scraped_ids.update((c.company_id, c.sector) for c in new_companies)
+        await on_page(new_companies)
+
+    log.info("listing_scrape_complete", total=len(new_companies))
+    return len(new_companies)

@@ -38,7 +38,7 @@ from hak_talent_mapping.config import Settings
 from hak_talent_mapping.core.models import Company, CompanyDetail
 from hak_talent_mapping.db.repository import CompanyRepository
 from hak_talent_mapping.services.detail_scraper import scrape_all_details
-from hak_talent_mapping.services.listing_scraper import scrape_all_listings
+from hak_talent_mapping.services.listing_scraper import scrape_listings
 
 
 def _configure_logging() -> None:
@@ -57,14 +57,12 @@ def _configure_logging() -> None:
     logging.getLogger("asyncio").setLevel(logging.ERROR)
 
 
-async def run_listings(settings: Settings, repo: CompanyRepository) -> None:
-    """Phase 1 — scrape all listing pages and upsert into Supabase."""
+async def run_listings(
+    country: str, sector: str, settings: Settings, repo: CompanyRepository
+) -> None:
+    """Phase 1 — scrape listing pages for a given country/sector and upsert into Supabase."""
     log = structlog.get_logger()
-    log.info(
-        "phase1_start",
-        country=settings.country or "all",
-        sector=settings.sector or "all",
-    )
+    log.info("phase1_start", country=country, sector=sector)
 
     already_scraped = await repo.get_scraped_listing_ids_async()
     log.info("resume_info", already_scraped=len(already_scraped))
@@ -77,7 +75,9 @@ async def run_listings(settings: Settings, repo: CompanyRepository) -> None:
         total_upserted += len(companies)
         log.info("page_upserted", count=len(companies), total_so_far=total_upserted)
 
-    total_found = await scrape_all_listings(
+    total_found = await scrape_listings(
+        country,
+        sector,
         settings,
         already_scraped=already_scraped,
         on_page=on_page,
@@ -115,9 +115,9 @@ async def run_details(
 
 
 async def run_all(
-    settings: Settings, repo: CompanyRepository, limit: int | None = None
+    country: str, sector: str, settings: Settings, repo: CompanyRepository, limit: int | None = None
 ) -> None:
-    await run_listings(settings, repo)
+    await run_listings(country, sector, settings, repo)
     if settings.scrape_details:
         await run_details(settings, repo, limit=limit)
 
@@ -148,16 +148,16 @@ def main() -> None:
     parser.add_argument(
         "--country",
         type=str,
-        default=None,
+        required=True,
         metavar="CODE",
-        help="Filter by country code (e.g. AE, SA). Default: all countries",
+        help="Country code to scrape (e.g. AE, SA)",
     )
     parser.add_argument(
         "--sector",
         type=str,
-        default=None,
+        required=True,
         metavar="SECTOR",
-        help="Filter by sector name (e.g. Retailers). Default: all sectors",
+        help="Sector name to scrape (e.g. Retailers)",
     )
     args = parser.parse_args()
 
@@ -168,15 +168,6 @@ def main() -> None:
         log.error("hint", message="Copy .env.example to .env and fill in your credentials")
         sys.exit(1)
 
-    # Apply CLI filter overrides
-    overrides: dict[str, str | None] = {}
-    if args.country is not None:
-        overrides["country"] = args.country
-    if args.sector is not None:
-        overrides["sector"] = args.sector
-    if overrides:
-        settings = settings.model_copy(update=overrides)
-
     supabase_client = create_client(settings.supabase_url, settings.supabase_key)
     repo = CompanyRepository(supabase_client)
 
@@ -184,17 +175,17 @@ def main() -> None:
         "scraper_starting",
         phase=args.phase,
         limit=args.limit,
-        country=settings.country or "all",
-        sector=settings.sector or "all",
+        country=args.country,
+        sector=args.sector,
     )
 
     try:
         if args.phase == "listings":
-            asyncio.run(run_listings(settings, repo))
+            asyncio.run(run_listings(args.country, args.sector, settings, repo))
         elif args.phase == "details":
             asyncio.run(run_details(settings, repo, limit=args.limit))
         else:
-            asyncio.run(run_all(settings, repo, limit=args.limit))
+            asyncio.run(run_all(args.country, args.sector, settings, repo, limit=args.limit))
     except KeyboardInterrupt:
         log.info("interrupted_by_user")
     except Exception as exc:

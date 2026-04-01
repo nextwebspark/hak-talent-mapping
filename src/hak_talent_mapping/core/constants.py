@@ -1,0 +1,68 @@
+from __future__ import annotations
+
+# All countries available on Zawya's find-companies filter dropdown.
+ZAWYA_COUNTRIES: list[tuple[str, str]] = [
+    ("AE", "United Arab Emirates"),
+    ("SA", "Saudi Arabia"),
+    ("IN", "India"),
+    ("DZ", "Algeria"),
+    ("AO", "Angola"),
+    ("BH", "Bahrain"),
+    ("CY", "Cyprus"),
+    ("EG", "Egypt"),
+    ("ET", "Ethiopia"),
+    ("IQ", "Iraq"),
+    ("IL", "Israel"),
+    ("JO", "Jordan"),
+    ("KE", "Kenya"),
+    ("KW", "Kuwait"),
+    ("LB", "Lebanon"),
+    ("MU", "Mauritius"),
+    ("MA", "Morocco"),
+    ("MZ", "Mozambique"),
+    ("NG", "Nigeria"),
+    ("OM", "Oman"),
+    ("PK", "Pakistan"),
+    ("QA", "Qatar"),
+    ("SC", "Seychelles"),
+    ("ZA", "South Africa"),
+    ("TZ", "Tanzania"),
+    ("TN", "Tunisia"),
+    ("TR", "Turkey"),
+    ("UG", "Uganda"),
+]
+
+# All sectors available on Zawya's find-companies filter dropdown.
+# Values are the option `value` attributes from the <select name="sector"> dropdown.
+ZAWYA_SECTORS: list[str] = [
+    "Academic & Educational Services",
+    "Applied Resources",
+    "Automobiles & Auto Parts",
+    "Banking & Investment Services",
+    "Chemicals",
+    "Collective Investments",
+    "Energy - Fossil Fuels",
+    "Financial Technology (Fintech) & Infrastructure",
+    "Food & Beverages",
+    "Food & Drug Retailing",
+    "Government Activity",
+    "Healthcare Services & Equipment",
+    "Cyclical Consumer Services",      # displayed as "Hotels & Entertainment"
+    "Industrial & Commercial Services",
+    "Industrial Goods",
+    "Institutions, Associations & Organizations",
+    "Insurance",
+    "Investment Holding Companies",
+    "Mineral Resources",
+    "Personal & Household Products & Services",
+    "Pharmaceuticals & Medical Research",
+    "Real Estate",
+    "Renewable Energy",
+    "Retailers",
+    "Software & IT Services",
+    "Technology Equipment",
+    "Telecommunications Services",
+    "Cyclical Consumer Products",      # displayed as "Textiles"
+    "Transportation",
+    "Utilities",
+]
