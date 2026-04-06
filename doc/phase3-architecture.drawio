@@ -1,0 +1,610 @@
+<mxfile host="app.diagrams.net" modified="2026-04-02" agent="HAK Platform" version="24.0" type="device">
+  <diagram id="hak-overview" name="1. System Overview">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="title1" value="HAK Platform — Phase 3 (Revised): System Architecture Overview" style="text;html=1;fontSize=24;fontStyle=1;align=center;verticalAlign=middle;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="250" y="20" width="700" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <!-- DATA SOURCES (Left) -->
+        <!-- ═══════════════════════════════════════════ -->
+        <mxCell id="ds-group" value="DATA SOURCES" style="swimlane;startSize=30;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;fontSize=13;fontColor=#333333;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="100" width="200" height="400" as="geometry" />
+        </mxCell>
+        <mxCell id="ds-zawya" value="Zawya&#xa;(Phase 1+2 Data)&#xa;28 countries × 30 sectors" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="ds-group">
+          <mxGeometry x="30" y="50" width="140" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="ds-google" value="Google / Bing&#xa;Search API" style="shape=cloud;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="ds-group">
+          <mxGeometry x="20" y="145" width="160" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="ds-websites" value="Company&#xa;Websites" style="shape=cloud;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="ds-group">
+          <mxGeometry x="20" y="235" width="160" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="ds-llm" value="Claude / OpenAI&#xa;LLM API" style="shape=cloud;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="ds-group">
+          <mxGeometry x="20" y="320" width="160" height="65" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <!-- ENRICHMENT PIPELINE (Center) — 7 stages -->
+        <!-- ═══════════════════════════════════════════ -->
+        <mxCell id="pipe-group" value="ENRICHMENT PIPELINE (per company, 7 stages, resumable)" style="swimlane;startSize=30;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;fontSize=13;fontColor=#333333;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="300" y="100" width="620" height="500" as="geometry" />
+        </mxCell>
+
+        <!-- Stage 1: Init -->
+        <mxCell id="s1" value="1. INIT&#xa;&#xa;Create company_&#xa;details row&#xa;&#xa;Status: pending" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;verticalAlign=top;fontStyle=0;align=center;" vertex="1" parent="pipe-group">
+          <mxGeometry x="20" y="50" width="110" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Stage 2: Web Search -->
+        <mxCell id="s2" value="2. WEB SEARCH&#xa;&#xa;10-12 queries&#xa;per company&#xa;&#xa;Status: web_search_done" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;verticalAlign=top;fontStyle=0;align=center;" vertex="1" parent="pipe-group">
+          <mxGeometry x="150" y="50" width="110" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Stage 3: Website Scrape -->
+        <mxCell id="s3" value="3. WEBSITE SCRAPE&#xa;&#xa;About, Team,&#xa;Contact pages&#xa;(Playwright)&#xa;&#xa;Status: website_scraped" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;verticalAlign=top;fontStyle=0;align=center;" vertex="1" parent="pipe-group">
+          <mxGeometry x="280" y="50" width="120" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Stage 4: LLM Profile Extraction -->
+        <mxCell id="s4" value="4. LLM PROFILE&#xa;&#xa;1-2 calls → full&#xa;structured profile&#xa;(not per-dimension)&#xa;&#xa;Status: llm_extracted" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;verticalAlign=top;fontStyle=0;align=center;" vertex="1" parent="pipe-group">
+          <mxGeometry x="420" y="50" width="130" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Stage 5: Profile Complete -->
+        <mxCell id="s5" value="5. PROFILE COMPLETE&#xa;&#xa;Validate completeness&#xa;Compute quality score&#xa;Set content_hash&#xa;&#xa;Status: profile_complete" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;verticalAlign=top;fontStyle=0;align=center;" vertex="1" parent="pipe-group">
+          <mxGeometry x="20" y="195" width="160" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- Stage 6: Scoring (decoupled) -->
+        <mxCell id="s6" value="6. SCORING (decoupled)&#xa;&#xa;Load YAML config for sector&#xa;Compute 4 dimensions 0-10&#xa;Compute base score 0-100&#xa;Evidence + confidence&#xa;&#xa;→ company_scores table" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;verticalAlign=top;fontStyle=0;align=center;" vertex="1" parent="pipe-group">
+          <mxGeometry x="210" y="195" width="180" height="110" as="geometry" />
+        </mxCell>
+
+        <!-- Stage 7: Vectorize -->
+        <mxCell id="s7" value="7. VECTORIZE&#xa;&#xa;Build rich embed text&#xa;(profile + scores)&#xa;Generate embedding&#xa;Upsert to Pinecone&#xa;&#xa;pinecone_synced_at set" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;verticalAlign=top;fontStyle=0;align=center;" vertex="1" parent="pipe-group">
+          <mxGeometry x="420" y="195" width="170" height="110" as="geometry" />
+        </mxCell>
+
+        <!-- Error -->
+        <mxCell id="s-fail" value="FAILED&#xa;&#xa;error logged&#xa;retry on&#xa;next run" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;verticalAlign=top;fontStyle=0;align=center;dashed=1;" vertex="1" parent="pipe-group">
+          <mxGeometry x="20" y="340" width="80" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Scoring Config -->
+        <mxCell id="s-config" value="YAML Scoring Configs&#xa;&#xa;retailers_v1.yaml&#xa;default_v1.yaml&#xa;healthcare_v1.yaml&#xa;(per-sector weights)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;verticalAlign=top;fontStyle=0;align=center;dashed=1;" vertex="1" parent="pipe-group">
+          <mxGeometry x="210" y="340" width="160" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- Arrows between stages -->
+        <mxCell id="a12" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#666666;" edge="1" source="s1" target="s2" parent="pipe-group">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a23" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#666666;" edge="1" source="s2" target="s3" parent="pipe-group">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a34" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#666666;" edge="1" source="s3" target="s4" parent="pipe-group">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a45" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#666666;" edge="1" source="s4" target="s5" parent="pipe-group">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a56" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#666666;" edge="1" source="s5" target="s6" parent="pipe-group">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a67" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#666666;" edge="1" source="s6" target="s7" parent="pipe-group">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <!-- Config → Scoring -->
+        <mxCell id="a-cfg" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#999999;dashed=1;" edge="1" source="s-config" target="s6" parent="pipe-group">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <!-- STORAGE (Right) — 3 stores -->
+        <!-- ═══════════════════════════════════════════ -->
+        <mxCell id="store-group" value="STORAGE LAYER" style="swimlane;startSize=30;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=13;fontColor=#333333;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="980" y="100" width="260" height="500" as="geometry" />
+        </mxCell>
+
+        <mxCell id="db-companies" value="Supabase&#xa;companies&#xa;(Phase 1+2 data)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="store-group">
+          <mxGeometry x="50" y="45" width="160" height="65" as="geometry" />
+        </mxCell>
+
+        <mxCell id="db-details" value="Supabase&#xa;company_details ★&#xa;&#xa;• rich profile (20+ fields)&#xa;• sector_metadata JSONB&#xa;• pipeline state&#xa;• raw audit trail" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;align=center;" vertex="1" parent="store-group">
+          <mxGeometry x="50" y="135" width="160" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="db-scores" value="Supabase&#xa;company_scores ★&#xa;&#xa;• 4 dimension scores&#xa;• evidence + confidence&#xa;• scoring_config_id&#xa;• base_score" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;align=center;" vertex="1" parent="store-group">
+          <mxGeometry x="50" y="260" width="160" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="db-pinecone" value="Pinecone&#xa;hak-company-profiles ★&#xa;&#xa;• 1536-dim vectors&#xa;• rich profile embed text&#xa;• metadata filters&#xa;• cosine similarity" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;align=center;" vertex="1" parent="store-group">
+          <mxGeometry x="50" y="385" width="160" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- FK arrows -->
+        <mxCell id="fk1" value="FK" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#999999;dashed=1;fontSize=9;" edge="1" source="db-details" target="db-companies" parent="store-group">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fk2" value="FK" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#999999;dashed=1;fontSize=9;" edge="1" source="db-scores" target="db-details" parent="store-group">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sync1" value="synced" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#9673a6;dashed=1;fontSize=9;" edge="1" source="db-details" target="db-pinecone" parent="store-group">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <!-- CONNECTING ARROWS -->
+        <!-- ═══════════════════════════════════════════ -->
+        <mxCell id="c1" value="read companies" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#6c8ebf;fontSize=9;" edge="1" source="ds-zawya" target="s1" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c2" value="search queries" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d6b656;fontSize=9;" edge="1" source="ds-google" target="s2" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c3" value="scrape pages" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d6b656;fontSize=9;" edge="1" source="ds-websites" target="s3" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c4" value="extract profile" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#9673a6;fontSize=9;" edge="1" source="ds-llm" target="s4" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c5" value="save profile" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;fontSize=9;" edge="1" source="s5" target="db-details" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c6" value="save scores" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;fontSize=9;" edge="1" source="s6" target="db-scores" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c7" value="upsert vectors" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#6c8ebf;fontSize=9;" edge="1" source="s7" target="db-pinecone" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ═══════════════════════════════════════════ -->
+        <!-- LEGEND -->
+        <!-- ═══════════════════════════════════════════ -->
+        <mxCell id="legend" value="" style="swimlane;startSize=0;fillColor=none;strokeColor=#999999;dashed=1;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="630" width="700" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="leg1" value="External API" style="rounded=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=9;" vertex="1" parent="legend">
+          <mxGeometry x="10" y="12" width="80" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="leg2" value="LLM / AI" style="rounded=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=9;" vertex="1" parent="legend">
+          <mxGeometry x="100" y="12" width="80" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="leg3" value="Profile / Score" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=9;" vertex="1" parent="legend">
+          <mxGeometry x="190" y="12" width="90" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="leg4" value="Database" style="rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=9;" vertex="1" parent="legend">
+          <mxGeometry x="290" y="12" width="80" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="leg5" value="Error State" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=9;dashed=1;" vertex="1" parent="legend">
+          <mxGeometry x="380" y="12" width="80" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="leg6" value="Config / Internal" style="rounded=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=9;" vertex="1" parent="legend">
+          <mxGeometry x="470" y="12" width="100" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="leg7" value="★ = NEW table" style="text;fontSize=10;fontStyle=1;fontColor=#82b366;" vertex="1" parent="legend">
+          <mxGeometry x="590" y="14" width="100" height="24" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- PAGE 2: SCORING MODEL (sector-specific, YAML configs) -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <diagram id="hak-scoring" name="2. Scoring Model">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="t2" value="HAK Scoring Model — 4 Dimensions + Sector-Specific YAML Configs" style="text;html=1;fontSize=22;fontStyle=1;align=center;verticalAlign=middle;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="250" y="20" width="700" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- ═══ Dimension 1: Organisational Scale ═══ -->
+        <mxCell id="d1" value="" style="swimlane;startSize=0;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="360" height="380" as="geometry" />
+        </mxCell>
+        <mxCell id="d1-title" value="Dimension 1: Organisational Scale" style="text;html=1;fontSize=16;fontStyle=1;align=center;fillColor=#82b366;fontColor=#ffffff;rounded=1;" vertex="1" parent="d1">
+          <mxGeometry x="0" y="0" width="360" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="d1-weight" value="Default Weight: 25% (sector-configurable)" style="text;html=1;fontSize=12;fontStyle=1;align=center;fontColor=#82b366;" vertex="1" parent="d1">
+          <mxGeometry x="0" y="40" width="360" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="d1-signals" value="SIGNALS&#xa;─────────────────────────&#xa;• Estimated headcount&#xa;  (LinkedIn, job boards, news)&#xa;• Number of locations&#xa;  (Google Maps, website, press)&#xa;• Revenue proxies&#xa;  (Annual reports, press)" style="text;html=0;fontSize=11;align=left;verticalAlign=top;spacingLeft=15;" vertex="1" parent="d1">
+          <mxGeometry x="0" y="70" width="360" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="d1-formula" value="FORMULA&#xa;─────────────────────────&#xa;headcount_score = min(10, 2.5 × log₁₀(n+1))&#xa;location_score = min(10, 2.0 × log₁₀(n+1))&#xa;&#xa;scale = 0.50×headcount + 0.30×location&#xa;      + 0.20×revenue_bracket&#xa;&#xa;Note: logarithmic — caps the scale effect" style="text;html=0;fontSize=10;align=left;verticalAlign=top;spacingLeft=15;fontFamily=monospace;" vertex="1" parent="d1">
+          <mxGeometry x="0" y="205" width="360" height="170" as="geometry" />
+        </mxCell>
+
+        <!-- ═══ Dimension 2: Brand Prominence ═══ -->
+        <mxCell id="d2" value="" style="swimlane;startSize=0;fillColor=#fff2cc;strokeColor=#d6b656;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="420" y="80" width="360" height="380" as="geometry" />
+        </mxCell>
+        <mxCell id="d2-title" value="Dimension 2: Brand &amp; Market Prominence" style="text;html=1;fontSize=16;fontStyle=1;align=center;fillColor=#d6b656;fontColor=#ffffff;rounded=1;" vertex="1" parent="d2">
+          <mxGeometry x="0" y="0" width="360" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="d2-weight" value="Default Weight: 20% (sector-configurable)" style="text;html=1;fontSize=12;fontStyle=1;align=center;fontColor=#d6b656;" vertex="1" parent="d2">
+          <mxGeometry x="0" y="40" width="360" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="d2-signals" value="SIGNALS&#xa;─────────────────────────&#xa;• Media mention frequency (12 months)&#xa;  (News API, web search volume)&#xa;• Category leadership signals&#xa;  (&quot;largest&quot;, &quot;leading&quot;, &quot;first&quot;)&#xa;• Award / recognition mentions&#xa;• Regional expansion news" style="text;html=0;fontSize=11;align=left;verticalAlign=top;spacingLeft=15;" vertex="1" parent="d2">
+          <mxGeometry x="0" y="70" width="360" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="d2-formula" value="FORMULA&#xa;─────────────────────────&#xa;For each mention:&#xa;  weight = 1.0 × 0.5^(months_ago / 12)&#xa;&#xa;raw = Σ(weighted_mentions)&#xa;prominence = min(10, normalize(raw))&#xa;&#xa;Note: recency decay — recent &gt; old" style="text;html=0;fontSize=10;align=left;verticalAlign=top;spacingLeft=15;fontFamily=monospace;" vertex="1" parent="d2">
+          <mxGeometry x="0" y="205" width="360" height="170" as="geometry" />
+        </mxCell>
+
+        <!-- ═══ Dimension 3: Leadership Depth ═══ -->
+        <mxCell id="d3" value="" style="swimlane;startSize=0;fillColor=#dae8fc;strokeColor=#6c8ebf;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="800" y="80" width="360" height="380" as="geometry" />
+        </mxCell>
+        <mxCell id="d3-title" value="Dimension 3: Leadership Depth" style="text;html=1;fontSize=16;fontStyle=1;align=center;fillColor=#6c8ebf;fontColor=#ffffff;rounded=1;" vertex="1" parent="d3">
+          <mxGeometry x="0" y="0" width="360" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="d3-weight" value="Default Weight: 25% (sector-configurable)" style="text;html=1;fontSize=12;fontStyle=1;align=center;fontColor=#6c8ebf;" vertex="1" parent="d3">
+          <mxGeometry x="0" y="40" width="360" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="d3-signals" value="SIGNALS&#xa;─────────────────────────&#xa;• C-suite / VP profiles visible&#xa;  (LinkedIn search by company + seniority)&#xa;• Named executives in press / website&#xa;• Executive tenure signals&#xa;• Functional breadth coverage&#xa;  (Commercial, Ops, Finance, Mktg, Tech, HR)" style="text;html=0;fontSize=11;align=left;verticalAlign=top;spacingLeft=15;" vertex="1" parent="d3">
+          <mxGeometry x="0" y="70" width="360" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="d3-formula" value="FORMULA&#xa;─────────────────────────&#xa;exec_score = min(10, named_execs × 1.5)&#xa;&#xa;breadth_bonus:&#xa;  1-2 functions: +0&#xa;  3-4 functions: +1.0&#xa;  5-6 functions: +2.0&#xa;&#xa;leadership = min(10, exec_score + bonus)" style="text;html=0;fontSize=10;align=left;verticalAlign=top;spacingLeft=15;fontFamily=monospace;" vertex="1" parent="d3">
+          <mxGeometry x="0" y="205" width="360" height="170" as="geometry" />
+        </mxCell>
+
+        <!-- ═══ Dimension 4: Sector Fit ═══ -->
+        <mxCell id="d4" value="" style="swimlane;startSize=0;fillColor=#e1d5e7;strokeColor=#9673a6;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="490" width="360" height="380" as="geometry" />
+        </mxCell>
+        <mxCell id="d4-title" value="Dimension 4: Sector Fit Confidence" style="text;html=1;fontSize=16;fontStyle=1;align=center;fillColor=#9673a6;fontColor=#ffffff;rounded=1;" vertex="1" parent="d4">
+          <mxGeometry x="0" y="0" width="360" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="d4-weight" value="Default Weight: 30% (sector-configurable)" style="text;html=1;fontSize=12;fontStyle=1;align=center;fontColor=#9673a6;" vertex="1" parent="d4">
+          <mxGeometry x="0" y="40" width="360" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="d4-signals" value="SIGNALS&#xa;─────────────────────────&#xa;• Primary activity matches sector&#xa;  (Company description, website, news)&#xa;• Country operational presence confirmed&#xa;  (Physical operations, local domain, press)&#xa;• Sub-sector classification&#xa;• Relevance type (Direct/Adjacent/Inferred)" style="text;html=0;fontSize=11;align=left;verticalAlign=top;spacingLeft=15;" vertex="1" parent="d4">
+          <mxGeometry x="0" y="70" width="360" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="d4-formula" value="FORMULA&#xa;─────────────────────────&#xa;GATE: Is this company in {sector} in {country}?&#xa;  NO → score = 0 (confident exclusion)&#xa;  YES → continue&#xa;&#xa;Primary activity confirmed:  +4 pts&#xa;Country presence confirmed:  +3 pts&#xa;Sub-sector classifiable:    +3 pts&#xa;&#xa;sector_fit = gate × (p + c + s)" style="text;html=0;fontSize=10;align=left;verticalAlign=top;spacingLeft=15;fontFamily=monospace;" vertex="1" parent="d4">
+          <mxGeometry x="0" y="205" width="360" height="170" as="geometry" />
+        </mxCell>
+
+        <!-- ═══ Base Score + Scoring Config ═══ -->
+        <mxCell id="base" value="" style="swimlane;startSize=0;fillColor=#f8cecc;strokeColor=#b85450;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="420" y="490" width="360" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="base-title" value="Base Score → company_scores table" style="text;html=1;fontSize=16;fontStyle=1;align=center;fillColor=#b85450;fontColor=#ffffff;rounded=1;" vertex="1" parent="base">
+          <mxGeometry x="0" y="0" width="360" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="base-formula" value="base_score = (&#xa;  scale × weight_scale +&#xa;  prominence × weight_prominence +&#xa;  leadership × weight_leadership +&#xa;  sector_fit × weight_sector_fit&#xa;) × 10&#xa;&#xa;Range: 0 – 100&#xa;Weights from YAML: scoring_configs/{sector}_v1.yaml&#xa;&#xa;Stored with: scoring_config_id, scoring_weights,&#xa;scoring_config_hash (SHA256 for reproducibility)" style="text;html=0;fontSize=11;align=left;verticalAlign=top;spacingLeft=20;spacingTop=10;fontFamily=monospace;" vertex="1" parent="base">
+          <mxGeometry x="0" y="40" width="360" height="180" as="geometry" />
+        </mxCell>
+
+        <!-- ═══ Sector Metadata ═══ -->
+        <mxCell id="meta" value="" style="swimlane;startSize=0;fillColor=#f5f5f5;strokeColor=#666666;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="800" y="490" width="360" height="280" as="geometry" />
+        </mxCell>
+        <mxCell id="meta-title" value="sector_metadata JSONB (per-sector signals)" style="text;html=1;fontSize=14;fontStyle=1;align=center;fillColor=#666666;fontColor=#ffffff;rounded=1;" vertex="1" parent="meta">
+          <mxGeometry x="0" y="0" width="360" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="meta-body" value="Retailers:&#xa;  store_count, brand_tier, online_presence,&#xa;  loyalty_program, franchise_model&#xa;&#xa;Software &amp; IT:&#xa;  tech_stack[], product_type, deployment_model,&#xa;  hiring_velocity, ml_hiring&#xa;&#xa;Healthcare:&#xa;  facility_count, specialties[], accreditations[],&#xa;  facility_type, bed_count&#xa;&#xa;Banking:&#xa;  license_type, assets_under_mgmt,&#xa;  digital_banking, branch_count&#xa;&#xa;Validated by per-sector Pydantic models.&#xa;Sectors without a model accept any dict." style="text;html=0;fontSize=10;align=left;verticalAlign=top;spacingLeft=15;spacingTop=5;" vertex="1" parent="meta">
+          <mxGeometry x="0" y="35" width="360" height="240" as="geometry" />
+        </mxCell>
+
+        <!-- Arrows: dimensions → base score -->
+        <mxCell id="ab1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;dashed=1;" edge="1" source="d1" target="base" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ab2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#d6b656;dashed=1;" edge="1" source="d2" target="base" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ab3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#6c8ebf;dashed=1;" edge="1" source="d3" target="base" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ab4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#9673a6;dashed=1;" edge="1" source="d4" target="base" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- PAGE 3: DATABASE SCHEMA (3 tables + Pinecone) -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <diagram id="hak-database" name="3. Database Schema">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="t3" value="HAK Platform — Database Schema (3 Tables + Pinecone)" style="text;html=1;fontSize=22;fontStyle=1;align=center;verticalAlign=middle;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="350" y="20" width="600" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- ═══ companies table ═══ -->
+        <mxCell id="tbl-companies" value="" style="swimlane;startSize=0;fillColor=#dae8fc;strokeColor=#6c8ebf;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="300" height="500" as="geometry" />
+        </mxCell>
+        <mxCell id="tc-header" value="public.companies (existing)" style="text;html=1;fontSize=14;fontStyle=1;align=center;fillColor=#6c8ebf;fontColor=#ffffff;rounded=1;" vertex="1" parent="tbl-companies">
+          <mxGeometry x="0" y="0" width="300" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="tc-body" value="PK  id                 bigserial&#xa;UK  company_id          text NOT NULL&#xa;UK  sector              text NOT NULL&#xa;    name                text NOT NULL&#xa;    slug                text NOT NULL&#xa;    country             text NOT NULL&#xa;    company_type        text NOT NULL&#xa;    profile_url         text NOT NULL&#xa;    ─────── Phase 2 (sparse) ──────&#xa;    description         text&#xa;    website             text&#xa;    founded_year        integer&#xa;    address             text&#xa;    phone               text&#xa;    email               text&#xa;    employees_count     text&#xa;    executives          jsonb&#xa;    ─────── Timestamps ──────────&#xa;    listing_scraped_at  timestamptz&#xa;    detail_scraped_at   timestamptz&#xa;    created_at          timestamptz&#xa;    updated_at          timestamptz&#xa;&#xa;UNIQUE INDEX (company_id, sector)" style="text;html=0;fontSize=10;align=left;verticalAlign=top;spacingLeft=10;spacingTop=8;fontFamily=monospace;" vertex="1" parent="tbl-companies">
+          <mxGeometry x="0" y="35" width="300" height="460" as="geometry" />
+        </mxCell>
+
+        <!-- ═══ company_details table ═══ -->
+        <mxCell id="tbl-details" value="" style="swimlane;startSize=0;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="400" y="80" width="360" height="760" as="geometry" />
+        </mxCell>
+        <mxCell id="td-header" value="public.company_details ★ NEW" style="text;html=1;fontSize=14;fontStyle=1;align=center;fillColor=#82b366;fontColor=#ffffff;rounded=1;" vertex="1" parent="tbl-details">
+          <mxGeometry x="0" y="0" width="360" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="td-body" value="PK  id                      uuid (gen_random_uuid)&#xa;FK  company_id               text NOT NULL&#xa;FK  sector                   text NOT NULL&#xa;    ──────── Identity (Tier 1) ────────&#xa;    name                     text NOT NULL&#xa;    domain                   text (unique partial)&#xa;    description              text&#xa;    description_clean         text (LLM cleaned)&#xa;    ──────── Location ──────────────&#xa;    country                  text&#xa;    country_code             text (AE)&#xa;    city                     text (Dubai)&#xa;    region                   text (GCC)&#xa;    ──────── Sector Classification ──&#xa;    sub_sector               text&#xa;    sub_sector_tags          text[]&#xa;    ──────── Size &amp; Stage ──────────&#xa;    funding_stage            text&#xa;    funding_total_usd        bigint&#xa;    headcount_range          text (51-200)&#xa;    headcount_exact          integer&#xa;    founded_year             integer&#xa;    ──────── Sector Signals ────────&#xa;    sector_metadata          jsonb {}&#xa;    ──────── Display &amp; Links ───────&#xa;    logo_url, linkedin_url   text&#xa;    crunchbase_url           text&#xa;    ──────── Source IDs (future) ───&#xa;    crunchbase_uuid          text&#xa;    pdl_id                   text&#xa;    linkedin_company_id      text&#xa;    ──────── Quality ──────────────&#xa;    data_quality_score       real (0-1)&#xa;    content_hash             text&#xa;    sources_used             text[]&#xa;    ──────── Pipeline State ───────&#xa;    enrichment_status        text (state machine)&#xa;    enrichment_error         text&#xa;    enrichment_version       integer&#xa;    ──────── Vector Sync ──────────&#xa;    pinecone_synced_at       timestamptz&#xa;    embedding_model          text&#xa;    ──────── Raw Audit Trail ──────&#xa;    raw_search_results       jsonb []&#xa;    raw_website_data         jsonb {}&#xa;    raw_llm_extraction       jsonb {}&#xa;    ──────── Timestamps ──────────&#xa;    last_enriched_at         timestamptz&#xa;    created_at               timestamptz&#xa;    updated_at               timestamptz&#xa;&#xa;FK → companies(company_id, sector)&#xa;UNIQUE INDEX (company_id, sector)&#xa;UNIQUE PARTIAL INDEX (domain)&#xa;GIN INDEX (sector_metadata)&#xa;GIN INDEX (sub_sector_tags)" style="text;html=0;fontSize=9;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontFamily=monospace;" vertex="1" parent="tbl-details">
+          <mxGeometry x="0" y="35" width="360" height="720" as="geometry" />
+        </mxCell>
+
+        <!-- ═══ company_scores table ═══ -->
+        <mxCell id="tbl-scores" value="" style="swimlane;startSize=0;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="820" y="80" width="380" height="560" as="geometry" />
+        </mxCell>
+        <mxCell id="ts-header" value="public.company_scores ★ NEW" style="text;html=1;fontSize=14;fontStyle=1;align=center;fillColor=#82b366;fontColor=#ffffff;rounded=1;" vertex="1" parent="tbl-scores">
+          <mxGeometry x="0" y="0" width="380" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="ts-body" value="PK  id                               uuid&#xa;FK  company_detail_id                uuid NOT NULL&#xa;    company_id                       text (denorm)&#xa;    sector                           text (denorm)&#xa;    ──────── Dimension Scores (0-10) ────────&#xa;    organisational_scale_score       numeric(4,2)&#xa;    brand_prominence_score           numeric(4,2)&#xa;    leadership_depth_score           numeric(4,2)&#xa;    sector_fit_confidence_score      numeric(4,2)&#xa;    ──────── Confidence (0-1) ──────────────&#xa;    organisational_scale_confidence  numeric(3,2)&#xa;    brand_prominence_confidence      numeric(3,2)&#xa;    leadership_depth_confidence      numeric(3,2)&#xa;    sector_fit_confidence_confidence numeric(3,2)&#xa;    ──────── Evidence (JSONB) ──────────────&#xa;    organisational_scale_evidence    jsonb {}&#xa;    brand_prominence_evidence        jsonb {}&#xa;    leadership_depth_evidence        jsonb {}&#xa;    sector_fit_confidence_evidence   jsonb {}&#xa;    ──────── Composite ─────────────────────&#xa;    base_score                       numeric(5,2)&#xa;    ──────── Scoring Config Reference ──────&#xa;    scoring_config_id                text NOT NULL&#xa;    scoring_config_hash              text&#xa;    scoring_weights                  jsonb NOT NULL&#xa;    ──────── Versioning ───────────────────&#xa;    scoring_version                  integer (1)&#xa;    scored_at                        timestamptz&#xa;    created_at                       timestamptz&#xa;    updated_at                       timestamptz&#xa;&#xa;FK → company_details(id)&#xa;UNIQUE INDEX (company_detail_id, scoring_config_id)&#xa;INDEX (base_score DESC)&#xa;INDEX (sector, base_score DESC)" style="text;html=0;fontSize=9;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontFamily=monospace;" vertex="1" parent="tbl-scores">
+          <mxGeometry x="0" y="35" width="380" height="520" as="geometry" />
+        </mxCell>
+
+        <!-- ═══ Pinecone ═══ -->
+        <mxCell id="tbl-pinecone" value="" style="swimlane;startSize=0;fillColor=#e1d5e7;strokeColor=#9673a6;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="1260" y="80" width="320" height="400" as="geometry" />
+        </mxCell>
+        <mxCell id="tp-header" value="Pinecone: hak-company-profiles ★" style="text;html=1;fontSize=14;fontStyle=1;align=center;fillColor=#9673a6;fontColor=#ffffff;rounded=1;" vertex="1" parent="tbl-pinecone">
+          <mxGeometry x="0" y="0" width="320" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="tp-body" value="Config:&#xa;  dimensions:  1536&#xa;  metric:      cosine&#xa;  model:       text-embedding-3-small&#xa;&#xa;Vector ID: {company_detail_id}&#xa;&#xa;Embedded Text (rich profile):&#xa;  Company name, sector, sub_sector&#xa;  Description (LLM-cleaned)&#xa;  Size, funding, location info&#xa;  Sector-specific signals&#xa;  All dimension scores + rationale&#xa;&#xa;Metadata (for filtering):&#xa;  company_id        str&#xa;  sector            str&#xa;  sub_sector        str&#xa;  country_code      str&#xa;  city              str&#xa;  region            str&#xa;  headcount_range   str&#xa;  funding_stage     str&#xa;  founded_year      int&#xa;  base_score        float&#xa;  *_score (4 dims)  float&#xa;  scoring_config_id str&#xa;  sub_sector_tags   str[]&#xa;  data_quality      float" style="text;html=0;fontSize=9;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontFamily=monospace;" vertex="1" parent="tbl-pinecone">
+          <mxGeometry x="0" y="35" width="320" height="360" as="geometry" />
+        </mxCell>
+
+        <!-- FK Arrows -->
+        <mxCell id="fk-c-d" value="FK (company_id, sector)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#333333;fontSize=9;" edge="1" source="tbl-details" target="tbl-companies" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fk-d-s" value="FK (company_detail_id)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#333333;fontSize=9;" edge="1" source="tbl-scores" target="tbl-details" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="sync-dp" value="embedded + synced" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#9673a6;dashed=1;fontSize=9;" edge="1" source="tbl-scores" target="tbl-pinecone" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Relationship labels -->
+        <mxCell id="rel1" value="1 : 1" style="text;fontSize=11;fontStyle=1;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="345" y="250" width="40" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="rel2" value="1 : N" style="text;fontSize=11;fontStyle=1;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="770" y="250" width="40" height="20" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- PAGE 4: PROJECT STRUCTURE -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <diagram id="hak-structure" name="4. Project Structure">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="t4" value="HAK Platform — Project Structure (Phase 3 additions in green)" style="text;html=1;fontSize=22;fontStyle=1;align=center;verticalAlign=middle;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="200" y="20" width="700" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- core/ -->
+        <mxCell id="pkg-core" value="" style="swimlane;startSize=0;fillColor=#f5f5f5;strokeColor=#666666;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="300" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="core-title" value="core/" style="text;html=1;fontSize=14;fontStyle=1;align=center;fillColor=#666666;fontColor=#ffffff;rounded=1;" vertex="1" parent="pkg-core">
+          <mxGeometry x="0" y="0" width="300" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="core-body" value="models.py       ← MODIFY: +CompanyProfile,&#xa;                  +CompanyScoreRecord, +EnrichmentStatus,&#xa;                  +ProfileExtractionResult, +DimensionScore&#xa;constants.py    ← MODIFY: +COUNTRY_CODE_MAP, +REGION_MAP&#xa;exceptions.py   ← MODIFY: +EnrichmentError, +SearchAPIError,&#xa;                  +LLMError, +VectorStoreError, +ScoringError" style="text;html=0;fontSize=10;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;fontFamily=monospace;" vertex="1" parent="pkg-core">
+          <mxGeometry x="0" y="30" width="300" height="145" as="geometry" />
+        </mxCell>
+
+        <!-- scoring_configs/ -->
+        <mxCell id="pkg-configs" value="" style="swimlane;startSize=0;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="280" width="300" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="cfg-title" value="scoring_configs/ ★ NEW" style="text;html=1;fontSize=14;fontStyle=1;align=center;fillColor=#82b366;fontColor=#ffffff;rounded=1;" vertex="1" parent="pkg-configs">
+          <mxGeometry x="0" y="0" width="300" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="cfg-body" value="retailers_v1.yaml     (Retail-specific weights/signals)&#xa;default_v1.yaml       (Fallback for all sectors)&#xa;software_it_v1.yaml   (Software &amp; IT)&#xa;healthcare_v1.yaml    (Healthcare)&#xa;banking_v1.yaml       (Banking)&#xa;__init__.py" style="text;html=0;fontSize=10;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;fontFamily=monospace;" vertex="1" parent="pkg-configs">
+          <mxGeometry x="0" y="30" width="300" height="105" as="geometry" />
+        </mxCell>
+
+        <!-- services/enrichment/ -->
+        <mxCell id="pkg-enrich" value="" style="swimlane;startSize=0;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="80" width="320" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="enrich-title" value="services/enrichment/ ★ NEW" style="text;html=1;fontSize=14;fontStyle=1;align=center;fillColor=#82b366;fontColor=#ffffff;rounded=1;" vertex="1" parent="pkg-enrich">
+          <mxGeometry x="0" y="0" width="320" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="enrich-body" value="pipeline.py        EnrichmentPipeline (Stages 1-5)&#xa;web_search.py      SearchProvider ABC + Google/Bing&#xa;website_scraper.py Playwright company website scraper&#xa;scoring.py         ScoringEngine (Stage 6)&#xa;scoring_config.py  ScoringConfig, ConfigRegistry&#xa;vectorizer.py      Vectorizer (Stage 7)&#xa;__init__.py" style="text;html=0;fontSize=10;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;fontFamily=monospace;" vertex="1" parent="pkg-enrich">
+          <mxGeometry x="0" y="30" width="320" height="165" as="geometry" />
+        </mxCell>
+
+        <!-- services/llm/ -->
+        <mxCell id="pkg-llm" value="" style="swimlane;startSize=0;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="300" width="320" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="llm-title" value="services/llm/ ★ NEW" style="text;html=1;fontSize=14;fontStyle=1;align=center;fillColor=#82b366;fontColor=#ffffff;rounded=1;" vertex="1" parent="pkg-llm">
+          <mxGeometry x="0" y="0" width="320" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="llm-body" value="base.py            LLMProvider ABC&#xa;claude_provider.py Anthropic Claude implementation&#xa;openai_provider.py OpenAI GPT implementation&#xa;prompts.py         Profile extraction templates&#xa;__init__.py" style="text;html=0;fontSize=10;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;fontFamily=monospace;" vertex="1" parent="pkg-llm">
+          <mxGeometry x="0" y="30" width="320" height="125" as="geometry" />
+        </mxCell>
+
+        <!-- services/vector/ -->
+        <mxCell id="pkg-vector" value="" style="swimlane;startSize=0;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="480" width="320" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="vec-title" value="services/vector/ ★ NEW" style="text;html=1;fontSize=14;fontStyle=1;align=center;fillColor=#82b366;fontColor=#ffffff;rounded=1;" vertex="1" parent="pkg-vector">
+          <mxGeometry x="0" y="0" width="320" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="vec-body" value="embeddings.py     OpenAI embedding generation&#xa;pinecone_store.py Pinecone upsert/query/delete&#xa;__init__.py" style="text;html=0;fontSize=10;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;fontFamily=monospace;" vertex="1" parent="pkg-vector">
+          <mxGeometry x="0" y="30" width="320" height="95" as="geometry" />
+        </mxCell>
+
+        <!-- db/ -->
+        <mxCell id="pkg-db" value="" style="swimlane;startSize=0;fillColor=#fff2cc;strokeColor=#d6b656;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="740" y="80" width="320" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="db-title" value="db/" style="text;html=1;fontSize=14;fontStyle=1;align=center;fillColor=#d6b656;fontColor=#ffffff;rounded=1;" vertex="1" parent="pkg-db">
+          <mxGeometry x="0" y="0" width="320" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="db-body" value="repository.py          EXISTING (no changes)&#xa;detail_repository.py   ★ NEW: CRUD company_details&#xa;score_repository.py    ★ NEW: CRUD company_scores&#xa;__init__.py" style="text;html=0;fontSize=10;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;fontFamily=monospace;" vertex="1" parent="pkg-db">
+          <mxGeometry x="0" y="30" width="320" height="115" as="geometry" />
+        </mxCell>
+
+        <!-- scripts/ + supabase/ -->
+        <mxCell id="pkg-scripts" value="" style="swimlane;startSize=0;fillColor=#fff2cc;strokeColor=#d6b656;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="740" y="250" width="320" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="scr-title" value="scripts/ + supabase/" style="text;html=1;fontSize=14;fontStyle=1;align=center;fillColor=#d6b656;fontColor=#ffffff;rounded=1;" vertex="1" parent="pkg-scripts">
+          <mxGeometry x="0" y="0" width="320" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="scr-body" value="scripts/run_scraper.py  ← MODIFY: +enrich, +score,&#xa;                        +vectorize phases&#xa;                        +--sector all support&#xa;&#xa;supabase/migrations/&#xa;  002_add_company_details.sql   ★ NEW&#xa;  003_add_company_scores.sql    ★ NEW" style="text;html=0;fontSize=10;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;fontFamily=monospace;" vertex="1" parent="pkg-scripts">
+          <mxGeometry x="0" y="30" width="320" height="125" as="geometry" />
+        </mxCell>
+
+        <!-- config.py -->
+        <mxCell id="pkg-config" value="" style="swimlane;startSize=0;fillColor=#f5f5f5;strokeColor=#666666;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="740" y="430" width="320" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="conf-title" value="config.py ← MODIFY" style="text;html=1;fontSize=14;fontStyle=1;align=center;fillColor=#666666;fontColor=#ffffff;rounded=1;" vertex="1" parent="pkg-config">
+          <mxGeometry x="0" y="0" width="320" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="conf-body" value="+enrichment_concurrency  +search_provider&#xa;+llm_provider            +anthropic_api_key&#xa;+openai_api_key          +pinecone_api_key&#xa;+embedding_model         +scoring_config_dir" style="text;html=0;fontSize=10;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;fontFamily=monospace;" vertex="1" parent="pkg-config">
+          <mxGeometry x="0" y="30" width="320" height="65" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- PAGE 5: END-TO-END PLATFORM VISION -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <diagram id="hak-vision" name="5. Platform Vision">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="800" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="t5" value="HAK Platform — End-to-End Vision (Phase 1 → Phase 5)" style="text;html=1;fontSize=24;fontStyle=1;align=center;verticalAlign=middle;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="250" y="20" width="700" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Phase 1 -->
+        <mxCell id="p1" value="" style="swimlane;startSize=0;fillColor=#dae8fc;strokeColor=#6c8ebf;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="220" height="350" as="geometry" />
+        </mxCell>
+        <mxCell id="p1-title" value="Phase 1: Listing Scraper ✅" style="text;html=1;fontSize=13;fontStyle=1;align=center;fillColor=#6c8ebf;fontColor=#ffffff;rounded=1;" vertex="1" parent="p1">
+          <mxGeometry x="0" y="0" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="p1-body" value="httpx + BeautifulSoup&#xa;Zawya listing pages&#xa;28 countries × 30 sectors&#xa;&#xa;Output:&#xa;• company_id, name, slug&#xa;• sector, country&#xa;• company_type&#xa;• profile_url&#xa;&#xa;Storage:&#xa;→ Supabase companies table&#xa;&#xa;Status: COMPLETE&#xa;~6,800 UAE Retailers&#xa;Multi-sector UAE: TODO" style="text;html=0;fontSize=11;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;" vertex="1" parent="p1">
+          <mxGeometry x="0" y="35" width="220" height="310" as="geometry" />
+        </mxCell>
+
+        <!-- Phase 2 -->
+        <mxCell id="p2" value="" style="swimlane;startSize=0;fillColor=#dae8fc;strokeColor=#6c8ebf;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="280" y="80" width="220" height="350" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-title" value="Phase 2: Detail Scraper ✅" style="text;html=1;fontSize=13;fontStyle=1;align=center;fillColor=#6c8ebf;fontColor=#ffffff;rounded=1;" vertex="1" parent="p2">
+          <mxGeometry x="0" y="0" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="p2-body" value="Playwright (headless)&#xa;Zawya detail pages&#xa;innerText parsing&#xa;&#xa;Output (SPARSE):&#xa;• description&#xa;• website, founded_year&#xa;• address, phone, email&#xa;• employees_count&#xa;&#xa;Storage:&#xa;→ Supabase companies table&#xa;&#xa;Status: COMPLETE&#xa;Note: Data is very&#xa;inconsistent/missing" style="text;html=0;fontSize=11;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;" vertex="1" parent="p2">
+          <mxGeometry x="0" y="35" width="220" height="310" as="geometry" />
+        </mxCell>
+
+        <!-- Phase 3 -->
+        <mxCell id="p3" value="" style="swimlane;startSize=0;fillColor=#d5e8d4;strokeColor=#82b366;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="520" y="80" width="280" height="600" as="geometry" />
+        </mxCell>
+        <mxCell id="p3-title" value="Phase 3: Enrichment + Scoring ← CURRENT" style="text;html=1;fontSize=13;fontStyle=1;align=center;fillColor=#82b366;fontColor=#ffffff;rounded=1;" vertex="1" parent="p3">
+          <mxGeometry x="0" y="0" width="280" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="p3-body" value="7-Stage Pipeline:&#xa;1. Init company_details row&#xa;2. Web search (Google/Bing, 10-12 queries)&#xa;3. Website scrape (Playwright)&#xa;4. LLM profile extraction (1-2 calls)&#xa;5. Profile complete (validation)&#xa;6. Scoring (YAML config per sector)&#xa;7. Vectorize (Pinecone)&#xa;&#xa;Output:&#xa;• Rich company profile (20+ fields)&#xa;• sector_metadata JSONB&#xa;• 4 dimension scores (0-10)&#xa;• base_score (0-100)&#xa;• Evidence + confidence per dimension&#xa;• 1536-dim vector embeddings&#xa;&#xa;Storage:&#xa;→ Supabase company_details&#xa;→ Supabase company_scores&#xa;→ Pinecone hak-company-profiles&#xa;&#xa;Scope:&#xa;• Multi-sector UAE (all 30 sectors)&#xa;• YAML scoring configs per sector&#xa;• Decoupled: profile ≠ scoring&#xa;• LLM-agnostic (Claude / OpenAI)&#xa;&#xa;Status: IN PROGRESS" style="text;html=0;fontSize=11;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;" vertex="1" parent="p3">
+          <mxGeometry x="0" y="35" width="280" height="560" as="geometry" />
+        </mxCell>
+
+        <!-- Phase 4 -->
+        <mxCell id="p4" value="" style="swimlane;startSize=0;fillColor=#f5f5f5;strokeColor=#999999;rounded=1;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="820" y="80" width="220" height="350" as="geometry" />
+        </mxCell>
+        <mxCell id="p4-title" value="Phase 4: Brief Engine" style="text;html=1;fontSize=13;fontStyle=1;align=center;fillColor=#999999;fontColor=#ffffff;rounded=1;" vertex="1" parent="p4">
+          <mxGeometry x="0" y="0" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="p4-body" value="Brief ingestion&#xa;Role archetype detection&#xa;Weight rebalancing&#xa;Pinecone semantic search&#xa;Company scorecard UI&#xa;User weight sliders&#xa;Brief-adjusted ranking&#xa;9-box talent map&#xa;&#xa;+Dimension 5:&#xa; Talent Export History&#xa; (data now accumulated)&#xa;&#xa;Status: PLANNED" style="text;html=0;fontSize=11;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;" vertex="1" parent="p4">
+          <mxGeometry x="0" y="35" width="220" height="310" as="geometry" />
+        </mxCell>
+
+        <!-- Phase 5 -->
+        <mxCell id="p5" value="" style="swimlane;startSize=0;fillColor=#f5f5f5;strokeColor=#999999;rounded=1;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="80" width="220" height="350" as="geometry" />
+        </mxCell>
+        <mxCell id="p5-title" value="Phase 5: Full Platform" style="text;html=1;fontSize=13;fontStyle=1;align=center;fillColor=#999999;fontColor=#ffffff;rounded=1;" vertex="1" parent="p5">
+          <mxGeometry x="0" y="0" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="p5-body" value="Candidate discovery&#xa;AI outreach drafts&#xa;Multi-dim assessment&#xa;Search Command Centre&#xa;Living profiles&#xa;Pipeline management&#xa;&#xa;= Full executive search OS&#xa;replacing search firms&#xa;&#xa;Status: FUTURE" style="text;html=0;fontSize=11;align=left;verticalAlign=top;spacingLeft=10;spacingTop=5;" vertex="1" parent="p5">
+          <mxGeometry x="0" y="35" width="220" height="310" as="geometry" />
+        </mxCell>
+
+        <!-- Arrows between phases -->
+        <mxCell id="ap12" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#6c8ebf;strokeWidth=2;" edge="1" source="p1" target="p2" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ap23" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#82b366;strokeWidth=2;" edge="1" source="p2" target="p3" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ap34" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#999999;dashed=1;strokeWidth=2;" edge="1" source="p3" target="p4" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ap45" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=#999999;dashed=1;strokeWidth=2;" edge="1" source="p4" target="p5" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- HAK Value Prop layers -->
+        <mxCell id="vp-label" value="Maps to HAK Value Proposition Layers:" style="text;html=1;fontSize=12;fontStyle=1;fontColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="40" y="470" width="300" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="vp1" value="Layer 1: Strategic Intelligence" style="rounded=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="40" y="500" width="200" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="vp2" value="Layer 2: Execution Engine" style="rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="260" y="500" width="200" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="vp3" value="Layer 3: Precision Outreach" style="rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="480" y="500" width="200" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="vp4" value="Layer 4: Continuous Analysis" style="rounded=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="700" y="500" width="200" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="vp5" value="Layer 5: Recommendation" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="920" y="500" width="200" height="30" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

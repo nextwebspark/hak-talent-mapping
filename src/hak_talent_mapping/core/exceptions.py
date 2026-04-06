@@ -19,3 +19,23 @@ class ParseError(ScrapingError):
 
 class DatabaseError(HakTalentError):
     """Raised when a Supabase database operation fails."""
+
+
+class EnrichmentError(HakTalentError):
+    """Raised when an enrichment pipeline stage fails."""
+
+
+class SearchAPIError(EnrichmentError):
+    """Raised when a web search API call fails."""
+
+
+class LLMExtractionError(EnrichmentError):
+    """Raised when the LLM profile extraction call fails."""
+
+
+class VectorStoreError(HakTalentError):
+    """Raised when a Pinecone operation fails."""
+
+
+class ScoringConfigError(HakTalentError):
+    """Raised when a sector scoring config is invalid or missing."""
