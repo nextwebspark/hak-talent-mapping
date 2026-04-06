@@ -17,6 +17,11 @@ dependencies = [
     "tenacity>=8.3.0",
     "playwright>=1.44.0",
     "python-dotenv>=1.0.0",
+    "rapidfuzz>=3.9.0",
+    # Phase 3 — enrichment pipeline (LLM via OpenRouter, embeddings via OpenAI)
+    "openai>=1.30.0",
+    "pinecone-client>=3.0.0",
+    "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]

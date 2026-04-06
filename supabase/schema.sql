@@ -24,6 +24,9 @@ create table if not exists public.companies (
     employees_count text,
     executives     jsonb,
 
+    -- Top company flag (Phase 3 enrichment)
+    top_company         boolean     not null default false,
+
     -- Timestamps
     listing_scraped_at  timestamptz,
     detail_scraped_at   timestamptz,

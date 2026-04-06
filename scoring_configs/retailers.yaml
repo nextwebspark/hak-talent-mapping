@@ -1,0 +1,118 @@
+# Scoring config: UAE Retailers sector
+# Version 1.0 — MVP (3 active dimensions, 2 cold-start placeholders)
+
+sector: Retailers
+config_id: retailers_v1
+version: "1.0"
+
+# Search queries used in Stage 2 (overrides defaults if present)
+search_queries:
+  - "{name} retail company overview UAE"
+  - "{name} number of employees headcount"
+  - "{name} CEO managing director leadership team"
+  - "{name} stores locations UAE"
+  - "{name} press news retail 2024 2025"
+  - "{name} founded history brand"
+  - "{name} DED trade license retail"
+  - "{name} revenue annual report"
+  - "{name} executives directors board"
+  - "{name} alumni careers LinkedIn"
+
+# Sector metadata fields to extract via LLM
+sector_metadata_schema:
+  store_count: "integer | null — number of retail locations"
+  store_formats: "list[string] | null — e.g. hypermarket, supermarket, specialty"
+  brands_owned: "list[string] | null — brand names operated by this company"
+  ded_license_confirmed: "boolean | null — whether DED trade license was found in sources"
+  mall_presence: "list[string] | null — mall names where they operate"
+
+sub_sector_gate:
+  enabled: false
+  sub_sectors: []
+  classification_signals: []
+
+dimensions:
+  - key: organisational_scale
+    label: Organisational Scale
+    default_weight: 0.35
+    cold_start_weight: 0.35
+    signals:
+      - name: headcount
+        weight: 0.60
+        extraction_field: headcount_range
+        source_config:
+          AE:
+            - linkedin
+            - ded_register
+          _default:
+            - linkedin
+            - website
+      - name: location_count
+        weight: 0.40
+        extraction_field: sector_metadata.store_count
+        source_config:
+          AE:
+            - mall_tenant_list
+            - company_website
+          _default:
+            - company_website
+            - press
+
+  - key: leadership_depth
+    label: Leadership Depth
+    default_weight: 0.35
+    cold_start_weight: 0.35
+    signals:
+      - name: named_executives
+        weight: 0.70
+        extraction_field: leadership_names
+        source_config:
+          AE:
+            - linkedin
+            - company_website
+          _default:
+            - linkedin
+            - press
+      - name: functional_breadth
+        weight: 0.30
+        extraction_field: leadership_names
+        source_config:
+          _default:
+            - linkedin
+            - company_website
+
+  - key: sector_fit_confidence
+    label: Sector Fit Confidence
+    default_weight: 0.30
+    cold_start_weight: 0.30
+    signals:
+      - name: regulatory_confirmation
+        weight: 0.60
+        extraction_field: sector_metadata.ded_license_confirmed
+        source_config:
+          AE:
+            - ded_register
+            - adgm_register
+          _default:
+            - website_description
+            - press
+      - name: sector_description_match
+        weight: 0.40
+        extraction_field: description_clean
+        source_config:
+          _default:
+            - website_description
+            - press
+
+  # Placeholders — will be activated post-MVP once data is available
+  - key: brand_prominence
+    label: Brand & Market Prominence
+    default_weight: 0.0
+    cold_start_weight: 0.0
+    signals: []
+
+  - key: talent_export_history
+    label: Talent Export History
+    default_weight: 0.0
+    cold_start_weight: 0.0
+    signals: []
