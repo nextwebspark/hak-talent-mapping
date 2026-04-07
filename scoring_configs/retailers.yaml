@@ -1,54 +1,110 @@
-# Scoring config: UAE Retailers sector
-# Version 1.0 — MVP (3 active dimensions, 2 cold-start placeholders)
+# Scoring config: Retailers (country-portable)
+# Version 2.0 — All 6 dimensions active
+# Weights: D1=22%, D2=18%, D3=25%, D4=10%, D5=15%, D6=10%
 
 sector: Retailers
-config_id: retailers_v1
-version: "1.0"
+config_id: retailers_v2
+version: "2.0"
 
-# Search queries used in Stage 2 (overrides defaults if present)
+# ---------------------------------------------------------------------------
+# Search queries — Stage 2 web search
+# {name}, {sector}, {country} are interpolated per company at runtime.
+# ---------------------------------------------------------------------------
 search_queries:
-  - "{name} retail company overview UAE"
+  # D1 — Scale
+  - "{name} retail company overview {country}"
   - "{name} number of employees headcount"
-  - "{name} CEO managing director leadership team"
-  - "{name} stores locations UAE"
+  - "{name} stores locations {country}"
+  - "{name} annual revenue turnover {country}"
+  # D2 — Brand & Prominence
   - "{name} press news retail 2024 2025"
-  - "{name} founded history brand"
-  - "{name} DED trade license retail"
-  - "{name} revenue annual report"
+  - "{name} award recognition retailer {country}"
+  # D3 — Leadership (broad queries — site:linkedin.com blocked for GCC companies)
+  - "{name} CEO managing director leadership team"
   - "{name} executives directors board"
-  - "{name} alumni careers LinkedIn"
+  - "{name} glassdoor senior management rating"
+  - "appointed {name} {country} CEO CFO COO director 2023 2024 2025"
+  # D4 — Alumni
+  - "formerly {name} retail executive director VP"
+  # D5 — Sector Fit
+  - "{name} DED trade license retail {country}"
+  # D6 — Momentum
+  - "{name} open jobs VP director retail {country}"
+  - "{name} acquisition merger restructure executive departure 2024 2025"
+  # General
+  - "{name} founded history brand"
+  - "{name} ownership private equity family business listed"
 
-# Sector metadata fields to extract via LLM
+# ---------------------------------------------------------------------------
+# Sector metadata fields — extracted by LLM in Stage 4
+# All sector-specific signals live here; engine reads them from sector_metadata.
+# ---------------------------------------------------------------------------
 sector_metadata_schema:
+  # D1 — Organisational Scale
   store_count: "integer | null — number of retail locations"
   store_formats: "list[string] | null — e.g. hypermarket, supermarket, specialty"
   brands_owned: "list[string] | null — brand names operated by this company"
-  ded_license_confirmed: "boolean | null — whether DED trade license was found in sources"
+  annual_revenue_usd: "integer | null — annual revenue in USD if mentioned in sources"
+  revenue_source: "string | null — e.g. press_report, annual_report, estimate"
   mall_presence: "list[string] | null — mall names where they operate"
 
+  # D2 — Brand & Market Prominence
+  press_mentions_count: "integer | null — approximate number of tier-1 press mentions last 12 months"
+  award_mentions_count: "integer | null — number of industry award or recognition mentions"
+  category_leader_signal: "boolean | null — whether sources describe the company as category leader"
+
+  # D3 — Leadership Depth sub-signals
+  glassdoor_senior_leadership_rating: "float | null — Glassdoor or AmbitionBox senior management rating (0-5 scale)"
+  ceo_approval_pct: "integer | null — CEO approval percentage from Glassdoor or AmbitionBox (0-100)"
+
+  # D3 — Leadership Depth (role-labelled executives, supplement to leadership_names)
+  ded_license_confirmed: "boolean | null — whether DED trade license was found in sources"
+
+  # D4 — Talent Export History (alumni handled via top-level alumni_signals field)
+
+  # D5 — Sector Fit Confidence
+  ownership_type: "string | null — one of: family_owned, pe_backed, listed, sovereign_linked, unknown"
+  relevance_type: "string | null — one of: direct, adjacent, inferred"
+
+  # D6 — Executive Talent Momentum
+  open_senior_roles_count: "integer | null — number of VP+ or Director-level open roles found in job postings"
+  c_suite_departures_18m: "integer | null — number of C-suite or VP departures in the last 18 months"
+  ma_restructure_signal: "boolean | null — whether M&A activity or restructuring was mentioned in last 24 months"
+  ma_restructure_recency: "string | null — one of: last_12m, 12_24m — how recent the M&A/restructure signal is"
+
+# ---------------------------------------------------------------------------
+# Sub-sector gate (disabled for MVP — enable per country when regulatory
+# source data is reliable enough to gate on)
+# ---------------------------------------------------------------------------
 sub_sector_gate:
   enabled: false
   sub_sectors: []
   classification_signals: []
 
+# ---------------------------------------------------------------------------
+# Scoring dimensions
+# ---------------------------------------------------------------------------
 dimensions:
   - key: organisational_scale
     label: Organisational Scale
-    default_weight: 0.35
-    cold_start_weight: 0.35
+    default_weight: 0.22
+    cold_start_weight: 0.22
     signals:
       - name: headcount
-        weight: 0.60
+        weight: 0.50
         extraction_field: headcount_range
         source_config:
           AE:
             - linkedin
             - ded_register
+          SA:
+            - linkedin
+            - cr_register
           _default:
             - linkedin
             - website
       - name: location_count
-        weight: 0.40
+        weight: 0.30
         extraction_field: sector_metadata.store_count
         source_config:
           AE:
@@ -57,11 +113,52 @@ dimensions:
           _default:
             - company_website
             - press
+      - name: annual_revenue
+        weight: 0.20
+        extraction_field: sector_metadata.annual_revenue_usd
+        source_config:
+          _default:
+            - press_report
+            - annual_report
+
+  - key: brand_market_prominence
+    label: Brand & Market Prominence
+    default_weight: 0.18
+    cold_start_weight: 0.18
+    signals:
+      - name: press_coverage
+        weight: 0.50
+        extraction_field: sector_metadata.press_mentions_count
+        source_config:
+          AE:
+            - gulf_news
+            - arabian_business
+            - the_national
+          SA:
+            - arab_news
+            - argaam
+          _default:
+            - regional_trade_press
+            - google_news
+      - name: awards_recognition
+        weight: 0.30
+        extraction_field: sector_metadata.award_mentions_count
+        source_config:
+          _default:
+            - industry_awards
+            - web_search
+      - name: category_leadership
+        weight: 0.20
+        extraction_field: sector_metadata.category_leader_signal
+        source_config:
+          _default:
+            - press
+            - web_search
 
   - key: leadership_depth
     label: Leadership Depth
-    default_weight: 0.35
-    cold_start_weight: 0.35
+    default_weight: 0.25
+    cold_start_weight: 0.25
     signals:
       - name: named_executives
         weight: 0.70
@@ -70,6 +167,9 @@ dimensions:
           AE:
             - linkedin
             - company_website
+          SA:
+            - linkedin
+            - tadawul_disclosures
           _default:
             - linkedin
             - press
@@ -81,10 +181,36 @@ dimensions:
             - linkedin
             - company_website
 
+  - key: talent_export_history
+    label: Talent Export History
+    default_weight: 0.10
+    # Reduced at cold start — platform alumni database not yet populated.
+    # Redistributed to D1 (+0.05) and D3 (+0.05) implicitly via weight normalisation.
+    cold_start_weight: 0.05
+    signals:
+      - name: tracked_alumni
+        weight: 1.0
+        extraction_field: alumni_signals
+        source_config:
+          _default:
+            - linkedin_alumni_search
+            - platform_database
+            - press_appointments
+
   - key: sector_fit_confidence
     label: Sector Fit Confidence
-    default_weight: 0.30
-    cold_start_weight: 0.30
+    default_weight: 0.15
+    cold_start_weight: 0.15
+    sector_keywords:
+      - retail
+      - retailer
+      - store
+      - shop
+      - brand
+      - supermarket
+      - fashion
+      - luxury
+      - distribution
     signals:
       - name: regulatory_confirmation
         weight: 0.60
@@ -93,6 +219,19 @@ dimensions:
           AE:
             - ded_register
             - adgm_register
+          SA:
+            - cr_register
+            - misa_classification
+          QA:
+            - ministry_of_commerce
+          KW:
+            - moci_register
+          EG:
+            - gafi_register
+          BH:
+            - moic_sijilat
+          JO:
+            - ccd_register
           _default:
             - website_description
             - press
@@ -104,15 +243,98 @@ dimensions:
             - website_description
             - press
 
-  # Placeholders — will be activated post-MVP once data is available
-  - key: brand_prominence
-    label: Brand & Market Prominence
-    default_weight: 0.0
-    cold_start_weight: 0.0
-    signals: []
+  - key: executive_talent_momentum
+    label: Executive Talent Momentum
+    default_weight: 0.10
+    cold_start_weight: 0.10
+    signals:
+      - name: open_senior_roles
+        weight: 0.40
+        extraction_field: sector_metadata.open_senior_roles_count
+        source_config:
+          _default:
+            - linkedin_jobs
+            - company_careers_page
+            - job_aggregators
+      - name: c_suite_movement
+        weight: 0.35
+        extraction_field: sector_metadata.c_suite_departures_18m
+        source_config:
+          _default:
+            - press
+            - linkedin
+      - name: ma_restructure
+        weight: 0.25
+        extraction_field: sector_metadata.ma_restructure_signal
+        source_config:
+          _default:
+            - press
+            - business_wire
 
-  - key: talent_export_history
-    label: Talent Export History
-    default_weight: 0.0
-    cold_start_weight: 0.0
-    signals: []
+# ---------------------------------------------------------------------------
+# Brief-adjusted weight tables
+# Applied when an archetype is passed to the scoring engine.
+# All weights within each archetype must sum to 1.0.
+# ---------------------------------------------------------------------------
+archetype_weights:
+  base:
+    organisational_scale: 0.22
+    brand_market_prominence: 0.18
+    leadership_depth: 0.25
+    talent_export_history: 0.10
+    sector_fit_confidence: 0.15
+    executive_talent_momentum: 0.10
+
+  cco:
+    # CCO: brand prominence up, scale down — commercial leaders come from visible brands
+    organisational_scale: 0.15
+    brand_market_prominence: 0.28
+    leadership_depth: 0.25
+    talent_export_history: 0.10
+    sector_fit_confidence: 0.12
+    executive_talent_momentum: 0.10
+
+  coo:
+    # COO: scale and talent export up — operational complexity and talent movement matter
+    organisational_scale: 0.28
+    brand_market_prominence: 0.08
+    leadership_depth: 0.25
+    talent_export_history: 0.18
+    sector_fit_confidence: 0.12
+    executive_talent_momentum: 0.09
+
+  cfo:
+    # CFO: talent export history up — finance talent moves across sectors
+    organisational_scale: 0.22
+    brand_market_prominence: 0.08
+    leadership_depth: 0.25
+    talent_export_history: 0.22
+    sector_fit_confidence: 0.13
+    executive_talent_momentum: 0.10
+
+  md_ceo:
+    # MD/CEO: scale and brand both matter — group-level leaders need full-platform view
+    organisational_scale: 0.28
+    brand_market_prominence: 0.18
+    leadership_depth: 0.25
+    talent_export_history: 0.12
+    sector_fit_confidence: 0.08
+    executive_talent_momentum: 0.09
+
+  buying_director:
+    # Buying: brand prominence up — product talent clusters in category-leading brands
+    organisational_scale: 0.12
+    brand_market_prominence: 0.25
+    leadership_depth: 0.25
+    talent_export_history: 0.18
+    sector_fit_confidence: 0.10
+    executive_talent_momentum: 0.10
+
+  supply_chain_director:
+    # Supply chain: scale and talent export up — complexity and deep operational talent
+    organisational_scale: 0.28
+    brand_market_prominence: 0.05
+    leadership_depth: 0.25
+    talent_export_history: 0.22
+    sector_fit_confidence: 0.10
+    executive_talent_momentum: 0.10

@@ -25,15 +25,52 @@ JSON Schema:
   "headcount_range": "string | null — one of: 1-10, 11-50, 51-200, 201-500, 501-1000, 1001-5000, 5001+",
   "headcount_exact": "integer | null — exact employee count if mentioned",
   "founded_year": "integer | null — year the company was founded",
-  "sector_metadata": {object — sector-specific fields, see instructions},
-  "alumni_signals": ["list of named people who worked here and moved to other companies"],
-  "leadership_names": ["list of current named executives/directors"],
+  "ownership_type": "string | null — one of: family_owned, pe_backed, listed, sovereign_linked, unknown",
+  "relevance_type": "string | null — one of: direct, adjacent, inferred",
+  "sector_metadata": {object — sector-specific fields, see instructions below},
+  "alumni_signals": ["list of named people who previously worked here and are now in senior roles elsewhere — format: 'Name, Title at Company'"],
+  "leadership_names": [
+    {
+      "name": "string — full name",
+      "title": "string — job title (e.g. Chief Executive Officer, CFO, VP Operations)",
+      "function": "string — one of: commercial, operations, finance, marketing, supply_chain, hr, technology, strategy, general_management, other"
+    }
+  ],
   "extraction_confidence": "float 0.0-1.0 — how confident you are in this extraction"
 }
 
+Leadership extraction rules:
+- Only include currently active executives/directors (not board members unless they are exec directors)
+- For each person: always provide name, title, and function
+- function must be one of: commercial, operations, finance, marketing, supply_chain, hr, technology, strategy, general_management, other
+- If you cannot determine the function, use "other"
+- Titles: use the exact title as stated in sources (e.g. "Chief Financial Officer" not "CFO")
+
+Ownership type rules:
+- family_owned: privately held by a founding family
+- pe_backed: majority-owned by private equity
+- listed: publicly traded on a stock exchange
+- sovereign_linked: government/sovereign wealth fund ownership
+- unknown: cannot be determined from available sources
+
+Relevance type rules:
+- direct: primary business activity is clearly in this sector
+- adjacent: partial or secondary activity in this sector
+- inferred: sector membership inferred from holding structure or brand description
+
+Glassdoor/AmbitionBox rules (for sector_metadata):
+- glassdoor_senior_leadership_rating: extract the "Senior Management" or "Leadership" rating if present (0-5 float)
+- ceo_approval_pct: extract the CEO approval percentage (0-100 integer) if present
+- If only an overall company rating is available (not specifically senior management), use null
+
+M&A recency rules (for sector_metadata.ma_restructure_recency):
+- "last_12m": M&A, merger, acquisition, or restructure announced/completed within the last 12 months
+- "12_24m": announced/completed 12–24 months ago
+- null: no signal found, or signal is older than 24 months (do not score)
+
 For sector_metadata, include any sector-specific structured data you can extract \
-(e.g. for Retailers: store_count, store_formats; for Academic: student_count, accreditations).
-If a field cannot be determined from the provided data, use null.
+per the schema provided in the instructions. If a field cannot be determined from \
+the provided data, use null.
 """
 
 

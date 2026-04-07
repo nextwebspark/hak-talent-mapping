@@ -224,6 +224,7 @@ async def run_enrich(
         search_service=SerperSearchService(
             api_key=settings.serper_api_key,
             queries_per_company=settings.search_queries_per_company,
+            query_templates=sector_config.search_queries if sector_config.search_queries else None,
         ),
         website_scraper=WebsiteScraper(timeout=settings.website_scrape_timeout),
         llm_provider=OpenRouterProvider(

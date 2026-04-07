@@ -39,6 +39,9 @@ class ScoreRepository:
             "overall_tolerance_pct": record.overall_tolerance_pct,
             "sub_sector_gate_result": record.sub_sector_gate_result,
             "sub_sector_classified": record.sub_sector_classified,
+            "brief_adjusted_score": record.brief_adjusted_score,
+            "applied_archetype": record.applied_archetype,
+            "d4_is_enriching": record.d4_is_enriching,
             "scoring_config_id": record.scoring_config_id,
             "config_hash": record.config_hash,
         }

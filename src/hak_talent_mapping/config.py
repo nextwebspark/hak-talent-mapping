@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     # Search provider: "serper" (Google via serper.dev)
     search_provider: str = "serper"
     serper_api_key: str = ""
-    search_queries_per_company: int = 10
+    search_queries_per_company: int = 17
 
     # LLM via OpenRouter (OpenAI-compatible SDK)
     # Model string is the OpenRouter model ID, e.g. "anthropic/claude-haiku-4-5"

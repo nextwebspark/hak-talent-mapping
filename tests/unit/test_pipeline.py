@@ -35,7 +35,12 @@ VALID_EXTRACTION = ProfileExtractionResult(
     headcount_exact=55000,
     founded_year=1973,
     sector_metadata={"store_count": 200, "ded_license_confirmed": True},
-    leadership_names=["CEO", "CFO"],
+    leadership_names=[
+        {"name": "John Smith", "title": "Chief Executive Officer", "function": "general_management"},
+        {"name": "Jane Doe", "title": "Chief Financial Officer", "function": "finance"},
+    ],
+    ownership_type="family_owned",
+    relevance_type="direct",
     extraction_confidence=0.9,
 )
 

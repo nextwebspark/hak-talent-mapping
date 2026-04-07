@@ -51,7 +51,36 @@ def test_profile_extraction_result_defaults() -> None:
     assert result.sub_sector_tags == []
     assert result.alumni_signals == []
     assert result.leadership_names == []
+    assert result.ownership_type is None
+    assert result.relevance_type is None
     assert result.extraction_confidence == 0.0
+
+
+def test_profile_extraction_result_role_aware_leadership() -> None:
+    """leadership_names accepts list[dict] with name/title/function."""
+    result = ProfileExtractionResult(
+        name="Landmark Group",
+        leadership_names=[
+            {"name": "Alice Chen", "title": "Chief Executive Officer", "function": "general_management"},
+            {"name": "Bob Smith", "title": "Chief Financial Officer", "function": "finance"},
+        ],
+        ownership_type="family_owned",
+        relevance_type="direct",
+        extraction_confidence=0.9,
+    )
+    assert len(result.leadership_names) == 2
+    assert result.ownership_type == "family_owned"
+    assert result.relevance_type == "direct"
+
+
+def test_profile_extraction_result_legacy_string_leadership() -> None:
+    """leadership_names also accepts list[str] for backwards compatibility."""
+    result = ProfileExtractionResult(
+        name="Legacy Co",
+        leadership_names=["CEO John Smith", "CFO Jane Doe"],
+        extraction_confidence=0.5,
+    )
+    assert len(result.leadership_names) == 2
 
 
 def test_profile_extraction_result_full() -> None:
@@ -68,13 +97,19 @@ def test_profile_extraction_result_full() -> None:
         headcount_exact=55000,
         founded_year=1973,
         sector_metadata={"store_count": 200, "ded_license_confirmed": True},
-        leadership_names=["CEO John Smith", "CFO Jane Doe"],
+        leadership_names=[
+            {"name": "CEO John Smith", "title": "Chief Executive Officer", "function": "general_management"},
+            {"name": "CFO Jane Doe", "title": "Chief Financial Officer", "function": "finance"},
+        ],
+        ownership_type="listed",
+        relevance_type="direct",
         extraction_confidence=0.9,
     )
     assert result.domain == "landmark.ae"
     assert result.headcount_exact == 55000
     assert result.sector_metadata["store_count"] == 200
     assert len(result.leadership_names) == 2
+    assert result.ownership_type == "listed"
 
 
 def test_profile_extraction_confidence_bounds() -> None:
@@ -167,6 +202,31 @@ def test_company_score_record_minimal() -> None:
     assert record.base_score == 72.5
     assert record.dimension_scores == {}
     assert record.overall_confidence_band == "wide"
+    assert record.brief_adjusted_score is None
+    assert record.applied_archetype is None
+    assert record.d4_is_enriching is False
+
+
+def test_company_score_record_with_brief_adjusted() -> None:
+    record = CompanyScoreRecord(
+        company_detail_id="some-uuid",
+        base_score=72.5,
+        brief_adjusted_score=78.0,
+        applied_archetype="cco",
+        d4_is_enriching=True,
+    )
+    assert record.brief_adjusted_score == 78.0
+    assert record.applied_archetype == "cco"
+    assert record.d4_is_enriching is True
+
+
+def test_company_score_record_brief_adjusted_bounds() -> None:
+    with pytest.raises(Exception):
+        CompanyScoreRecord(
+            company_detail_id="uuid",
+            base_score=50.0,
+            brief_adjusted_score=101.0,
+        )
 
 
 # ---------------------------------------------------------------------------

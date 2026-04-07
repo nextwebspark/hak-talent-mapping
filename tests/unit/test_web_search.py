@@ -167,7 +167,46 @@ async def test_search_company_respects_queries_per_company_limit() -> None:
 
 def test_service_caps_queries_at_template_count() -> None:
     """queries_per_company is capped at the number of available templates."""
-    service = SerperSearchService(api_key="key", queries_per_company=999)
-    from hak_talent_mapping.services.enrichment.web_search import _QUERY_TEMPLATES
+    from hak_talent_mapping.services.enrichment.web_search import _DEFAULT_QUERY_TEMPLATES
 
-    assert service._queries_per_company == len(_QUERY_TEMPLATES)
+    service = SerperSearchService(api_key="key", queries_per_company=999)
+    assert service._queries_per_company == len(_DEFAULT_QUERY_TEMPLATES)
+
+
+def test_service_uses_custom_templates_when_provided() -> None:
+    """Custom query templates (from sector YAML) override the defaults."""
+    custom = ["{name} custom query one", "{name} custom query two"]
+    service = SerperSearchService(api_key="key", query_templates=custom, queries_per_company=10)
+    assert service._queries_per_company == 2
+    assert service._query_templates == custom
+
+
+@pytest.mark.asyncio
+async def test_search_uses_sector_config_queries() -> None:
+    """When query_templates are passed from config, those queries are used."""
+    mock_response = _serper_response([])
+    captured: list[str] = []
+
+    async def capture_post(url: str, **kwargs: object) -> MagicMock:
+        captured.append((kwargs.get("json") or {}).get("q", ""))  # type: ignore[arg-type]
+        return mock_response
+
+    with patch(
+        "hak_talent_mapping.services.enrichment.web_search.build_async_client"
+    ) as mock_build:
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = AsyncMock(side_effect=capture_post)
+        mock_build.return_value = mock_client
+
+        with patch("hak_talent_mapping.services.enrichment.web_search.random_delay", new_callable=AsyncMock):
+            service = SerperSearchService(
+                api_key="test-key",
+                query_templates=["{name} sector config query {country}"],
+            )
+            await service.search_company(name="Landmark", sector="Retailers", country="UAE")
+
+    assert len(captured) == 1
+    assert "Landmark" in captured[0]
+    assert "UAE" in captured[0]

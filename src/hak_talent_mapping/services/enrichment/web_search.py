@@ -17,8 +17,9 @@ logger = structlog.get_logger()
 
 _SERPER_URL = "https://google.serper.dev/search"
 
-# Query templates — {name} and {sector} are interpolated per company
-_QUERY_TEMPLATES: list[str] = [
+# Fallback query templates used when no sector config is provided.
+# When a sector config is loaded, its search_queries field is used instead.
+_DEFAULT_QUERY_TEMPLATES: list[str] = [
     "{name} company overview {sector}",
     "{name} company employees headcount size",
     "{name} CEO leadership management team",
@@ -33,11 +34,23 @@ _QUERY_TEMPLATES: list[str] = [
 
 
 class SerperSearchService:
-    """Searches Google via serper.dev and returns structured snippets."""
+    """Searches Google via serper.dev and returns structured snippets.
 
-    def __init__(self, api_key: str, queries_per_company: int = 10) -> None:
+    Query templates are resolved in priority order:
+    1. ``query_templates`` passed at construction time (from sector YAML ``search_queries``)
+    2. ``_DEFAULT_QUERY_TEMPLATES`` (built-in fallback)
+    """
+
+    def __init__(
+        self,
+        api_key: str,
+        queries_per_company: int = 10,
+        query_templates: list[str] | None = None,
+    ) -> None:
         self._api_key = api_key
-        self._queries_per_company = min(queries_per_company, len(_QUERY_TEMPLATES))
+        templates = query_templates if query_templates else _DEFAULT_QUERY_TEMPLATES
+        self._query_templates = templates
+        self._queries_per_company = min(queries_per_company, len(templates))
 
     async def search_company(
         self,
@@ -45,12 +58,12 @@ class SerperSearchService:
         sector: str,
         country: str = "",
     ) -> list[dict[str, Any]]:
-        """Run all query templates for a company and return aggregated results.
+        """Run query templates for a company and return aggregated results.
 
         Returns a list of result objects, one per query, each containing
         the query string and a list of organic result snippets.
         """
-        templates = _QUERY_TEMPLATES[: self._queries_per_company]
+        templates = self._query_templates[: self._queries_per_company]
         all_results: list[dict[str, Any]] = []
 
         async with build_async_client(timeout=20.0) as client:

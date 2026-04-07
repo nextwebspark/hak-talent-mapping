@@ -107,7 +107,11 @@ class ProfileExtractionResult(BaseModel):
     founded_year: int | None = None
     sector_metadata: dict[str, Any] = Field(default_factory=dict)
     alumni_signals: list[str] = Field(default_factory=list)
-    leadership_names: list[str] = Field(default_factory=list)
+    # Each entry: {"name": "...", "title": "...", "function": "..."}
+    # Also accepts list[str] for backwards compatibility with old LLM responses.
+    leadership_names: list[dict[str, str]] | list[str] = Field(default_factory=list)
+    ownership_type: str | None = None  # family_owned|pe_backed|listed|sovereign_linked|unknown
+    relevance_type: str | None = None  # direct|adjacent|inferred
     extraction_confidence: float = Field(default=0.0, ge=0.0, le=1.0)
 
 
@@ -171,6 +175,10 @@ class CompanyScoreRecord(BaseModel):
     overall_tolerance_pct: float = 35.0
     sub_sector_gate_result: str | None = None  # "passed" | "excluded"
     sub_sector_classified: str | None = None
+    # Brief-adjusted score (computed when an archetype is specified)
+    brief_adjusted_score: float | None = Field(default=None, ge=0.0, le=100.0)
+    applied_archetype: str | None = None  # "base"|"cco"|"coo"|"cfo"|"md_ceo"|etc.
+    d4_is_enriching: bool = False
     scoring_config_id: str = ""
     config_hash: str = ""
     created_at: datetime | None = None
@@ -199,6 +207,9 @@ class DimensionConfig(BaseModel):
     default_weight: float
     cold_start_weight: float | None = None
     signals: list[SignalDefinition] = Field(default_factory=list)
+    # Sector-specific keywords for description matching (D5). Defined in YAML
+    # so each sector config can supply its own vocabulary without touching the engine.
+    sector_keywords: list[str] = Field(default_factory=list)
 
 
 class SubSectorGateConfig(BaseModel):
@@ -222,3 +233,6 @@ class SectorScoringConfig(BaseModel):
         default_factory=SubSectorGateConfig
     )
     search_queries: list[str] = Field(default_factory=list)
+    # Per-archetype weight overrides — keyed by archetype name (e.g. "cco", "coo").
+    # Each value maps dimension key → weight. Defined in sector YAML.
+    archetype_weights: dict[str, dict[str, float]] = Field(default_factory=dict)

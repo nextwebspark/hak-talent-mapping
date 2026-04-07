@@ -170,4 +170,43 @@ def test_real_retailers_config_loads() -> None:
     except ScoringConfigError:
         pytest.skip("scoring_configs/retailers.yaml not found — run from repo root")
     assert config.sector == "Retailers"
-    assert len(config.dimensions) >= 3
+    assert len(config.dimensions) >= 6
+
+
+def test_real_retailers_config_archetype_weights() -> None:
+    """retailers.yaml must have archetype_weights with at least base and cco entries."""
+    try:
+        config = load_sector_config("Retailers", config_dir="scoring_configs")
+    except ScoringConfigError:
+        pytest.skip("scoring_configs/retailers.yaml not found — run from repo root")
+    assert "base" in config.archetype_weights
+    assert "cco" in config.archetype_weights
+    # All archetype weight sets must reference all 6 dimension keys
+    expected_keys = {
+        "organisational_scale", "brand_market_prominence", "leadership_depth",
+        "talent_export_history", "sector_fit_confidence", "executive_talent_momentum",
+    }
+    for archetype, weights in config.archetype_weights.items():
+        assert set(weights.keys()) == expected_keys, f"Archetype {archetype} missing dimension keys"
+
+
+def test_real_retailers_config_all_dimensions_active() -> None:
+    """All 6 dimensions in retailers.yaml must have non-zero default_weight."""
+    try:
+        config = load_sector_config("Retailers", config_dir="scoring_configs")
+    except ScoringConfigError:
+        pytest.skip("scoring_configs/retailers.yaml not found — run from repo root")
+    active = [d for d in config.dimensions if d.default_weight > 0]
+    assert len(active) == 6
+
+
+def test_real_retailers_config_d4_cold_start() -> None:
+    """D4 talent_export_history must have cold_start_weight < default_weight."""
+    try:
+        config = load_sector_config("Retailers", config_dir="scoring_configs")
+    except ScoringConfigError:
+        pytest.skip("scoring_configs/retailers.yaml not found — run from repo root")
+    d4 = next((d for d in config.dimensions if d.key == "talent_export_history"), None)
+    assert d4 is not None
+    assert d4.cold_start_weight is not None
+    assert d4.cold_start_weight < d4.default_weight
