@@ -1,5 +1,5 @@
 # Scoring config: UAE Retailers sector
-# Version 2.0 — D4 Executive Talent Momentum added (4 active dimensions)
+# Version 1.0 — MVP (3 active dimensions, 2 cold-start placeholders)
 
 sector: Retailers
 config_id: retailers_v2
@@ -16,7 +16,6 @@ search_queries:
   - "{name} DED trade license retail"
   - "{name} revenue annual report"
   - "{name} executives directors board"
-  - "{name} executive departure appointment hired 2024 2025"
 
 # Sector metadata fields to extract via LLM
 sector_metadata_schema:
@@ -34,8 +33,8 @@ sub_sector_gate:
 dimensions:
   - key: organisational_scale
     label: Organisational Scale
-    default_weight: 0.30
-    cold_start_weight: 0.30
+    default_weight: 0.35
+    cold_start_weight: 0.35
     signals:
       - name: headcount
         weight: 0.60
@@ -60,8 +59,8 @@ dimensions:
 
   - key: leadership_depth
     label: Leadership Depth
-    default_weight: 0.30
-    cold_start_weight: 0.30
+    default_weight: 0.35
+    cold_start_weight: 0.35
     signals:
       - name: named_executives
         weight: 0.70
@@ -83,8 +82,8 @@ dimensions:
 
   - key: sector_fit_confidence
     label: Sector Fit Confidence
-    default_weight: 0.25
-    cold_start_weight: 0.25
+    default_weight: 0.30
+    cold_start_weight: 0.30
     signals:
       - name: regulatory_confirmation
         weight: 0.60
@@ -103,40 +102,6 @@ dimensions:
           _default:
             - website_description
             - press
-
-  - key: executive_talent_momentum
-    label: Executive Talent Momentum
-    default_weight: 0.15
-    cold_start_weight: 0.0
-    signals:
-      - name: senior_departures
-        weight: 0.25
-        extraction_field: raw_llm_extraction.momentum_signals.senior_departures_count
-        source_config:
-          _default:
-            - press
-            - linkedin
-      - name: open_senior_roles
-        weight: 0.25
-        extraction_field: raw_llm_extraction.momentum_signals.open_senior_roles_count
-        source_config:
-          _default:
-            - press
-            - linkedin_jobs
-      - name: ma_or_restructure
-        weight: 0.20
-        extraction_field: raw_llm_extraction.momentum_signals.ma_or_restructure
-        source_config:
-          _default:
-            - press
-            - company_website
-      - name: external_senior_hires
-        weight: 0.30
-        extraction_field: raw_llm_extraction.momentum_signals.external_senior_hires_count
-        source_config:
-          _default:
-            - press
-            - linkedin
 
   # Placeholders — will be activated post-MVP once data is available
   - key: brand_prominence
