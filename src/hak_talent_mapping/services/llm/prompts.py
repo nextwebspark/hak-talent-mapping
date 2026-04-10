@@ -27,7 +27,7 @@ JSON Schema:
   "founded_year": "integer | null — year the company was founded",
   "sector_metadata": {object — sector-specific fields, see instructions},
   "alumni_signals": ["list of named people who worked here and moved to other companies"],
-  "leadership_names": ["list of current named executives/directors"],
+  "leadership_names": [{"name": "string — executive full name", "title": "string | null — their role/title e.g. CEO, CFO, VP of Retail"}],
   "extraction_confidence": "float 0.0-1.0 — how confident you are in this extraction"
 }
 

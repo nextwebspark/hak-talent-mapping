@@ -107,7 +107,7 @@ class ProfileExtractionResult(BaseModel):
     founded_year: int | None = None
     sector_metadata: dict[str, Any] = Field(default_factory=dict)
     alumni_signals: list[str] = Field(default_factory=list)
-    leadership_names: list[str] = Field(default_factory=list)
+    leadership_names: list[dict[str, str]] = Field(default_factory=list)
     extraction_confidence: float = Field(default=0.0, ge=0.0, le=1.0)
 
 

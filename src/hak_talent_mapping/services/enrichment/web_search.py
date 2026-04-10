@@ -27,8 +27,7 @@ _QUERY_TEMPLATES: list[str] = [
     "{name} {sector} company profile",
     "{name} founded history {country}",
     "{name} offices locations branches",
-    "{name} executives directors board",
-    "{name} alumni careers LinkedIn",
+    "{name} executives directors board"
 ]
 
 

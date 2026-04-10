@@ -190,14 +190,15 @@ class ScoringEngine:
         # ProfileExtractionResult.sector_metadata there — but we also need
         # the alumni_signals/leadership_names. For MVP, derive from sector_metadata.
         sector_meta: dict[str, Any] = profile.get("sector_metadata") or {}
-        leadership_names: list[str] = sector_meta.get("leadership_names", [])
+        leadership_raw: list[Any] = sector_meta.get("leadership_names", [])
 
         # Also check if raw_llm_extraction has it
         raw_llm: dict[str, Any] = profile.get("raw_llm_extraction") or {}
-        if not leadership_names and isinstance(raw_llm, dict):
-            leadership_names = raw_llm.get("leadership_names", [])
+        if not leadership_raw and isinstance(raw_llm, dict):
+            leadership_raw = raw_llm.get("leadership_names", [])
 
-        n = len(leadership_names)
+        # Support both legacy list[str] and new list[dict] formats
+        n = len(leadership_raw)
         evidence: dict[str, SignalValue] = {}
         source_level = "none"
 

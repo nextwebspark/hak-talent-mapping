@@ -117,6 +117,7 @@ class DetailRepository:
             "name": profile.name,
             "domain": profile.domain,
             "description_clean": profile.description_clean,
+            "country_code": profile.country_code,
             "country": profile.country,
             "city": profile.city,
             "region": profile.region,
