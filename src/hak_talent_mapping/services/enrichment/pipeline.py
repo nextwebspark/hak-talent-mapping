@@ -54,12 +54,16 @@ class EnrichmentPipeline:
         self,
         company: dict[str, Any],
         sector_metadata_schema: dict[str, Any] | None = None,
+        query_templates: list[str] | None = None,
+        llm_guidance: str | None = None,
     ) -> str | None:
         """Enrich a single company through all 5 stages.
 
         Args:
             company: A row dict from the companies table.
             sector_metadata_schema: Optional schema for sector-specific fields.
+            query_templates: Sector-specific search query templates from YAML.
+            llm_guidance: Optional sector-specific reasoning instructions for the LLM.
 
         Returns:
             The company_detail id on success, None on failure.
@@ -109,7 +113,10 @@ class EnrichmentPipeline:
         if current_status == EnrichmentStatus.PENDING:
             try:
                 search_results = await self._search.search_company(
-                    name=name, sector=sector, country=country
+                    name=name,
+                    sector=sector,
+                    country=country,
+                    query_templates=query_templates,
                 )
                 await self._repo.upsert_raw_search_async(detail_id, search_results)
                 current_status = EnrichmentStatus.WEB_SEARCH_DONE
@@ -171,6 +178,7 @@ class EnrichmentPipeline:
                     search_results=search_results,
                     website_text=website_text,
                     sector_metadata_schema=sector_metadata_schema,
+                    llm_guidance=llm_guidance,
                 )
                 profile = _build_profile_from_extraction(
                     extraction, company_id, sector, country_code, country, detail_id
@@ -305,6 +313,8 @@ class EnrichmentRunner:
         self,
         companies: list[dict[str, Any]],
         sector_metadata_schema: dict[str, Any] | None = None,
+        query_templates: list[str] | None = None,
+        llm_guidance: str | None = None,
     ) -> dict[str, int]:
         """Enrich a list of companies with bounded concurrency.
 
@@ -318,7 +328,7 @@ class EnrichmentRunner:
             nonlocal succeeded, failed
             async with semaphore:
                 result = await self._pipeline.run_company(
-                    company, sector_metadata_schema
+                    company, sector_metadata_schema, query_templates, llm_guidance
                 )
                 if result:
                     succeeded += 1

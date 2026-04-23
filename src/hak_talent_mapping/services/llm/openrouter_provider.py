@@ -15,7 +15,7 @@ from tenacity import (
 from hak_talent_mapping.core.exceptions import LLMExtractionError
 from hak_talent_mapping.core.models import ProfileExtractionResult
 from hak_talent_mapping.services.llm.base import LLMProvider
-from hak_talent_mapping.services.llm.prompts import SYSTEM_PROMPT, build_user_prompt
+from hak_talent_mapping.services.llm.prompts import build_system_prompt, build_user_prompt
 
 logger = structlog.get_logger()
 
@@ -70,16 +70,20 @@ class OpenRouterProvider(LLMProvider):
         search_results: list[dict[str, Any]],
         website_text: str,
         sector_metadata_schema: dict[str, Any] | None = None,
+        llm_guidance: str | None = None,
     ) -> ProfileExtractionResult:
         """Call the configured model via OpenRouter to extract a company profile."""
+        system_prompt = build_system_prompt(
+            sector_metadata_schema=sector_metadata_schema,
+            llm_guidance=llm_guidance,
+        )
         user_prompt = build_user_prompt(
             company_name=company_name,
             sector=sector,
             search_results=search_results,
             website_text=website_text,
-            sector_metadata_schema=sector_metadata_schema,
         )
-        self.last_system_prompt = SYSTEM_PROMPT
+        self.last_system_prompt = system_prompt
         self.last_user_prompt = user_prompt
 
         try:
@@ -87,7 +91,7 @@ class OpenRouterProvider(LLMProvider):
                 model=self._model,
                 max_tokens=_MAX_TOKENS,
                 messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
             )

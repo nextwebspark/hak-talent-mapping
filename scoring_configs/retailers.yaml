@@ -1,29 +1,72 @@
 # Scoring config: UAE Retailers sector
-# Version 1.0 — MVP (3 active dimensions, 2 cold-start placeholders)
+# Version 2.2 — 3 active dimensions (D2 leadership_depth absorbed into brand_market_prominence)
 
 sector: Retailers
 config_id: retailers_v2
 version: "2.0"
 
+# Sector-specific reasoning guidance injected into the LLM system prompt
+llm_guidance: |
+  For sector_concentration, classify the company's relationship to the Retailers sector:
+  - "primary": retail is the company's dominant revenue source and core brand identity
+    (e.g. a supermarket chain, a fashion retailer, a specialty store group)
+  - "secondary": the company has a meaningful retail arm but is better known for another
+    sector (e.g. a real estate developer that also runs mall retail, an auto group with
+    a car accessories shop)
+  - "diversified": the company operates across 3 or more unrelated sectors with no single
+    dominant one (e.g. a conglomerate spanning real estate, hospitality, retail, and finance)
+  Use the company description, any mention of other business divisions, and the presence
+  of non-retail subsidiaries to decide. When in doubt between primary and secondary, lean
+  toward primary only if the majority of revenue or brand recognition is retail-focused.
+
+  For other_sectors, list only sectors where the company has significant operations
+  (not minor subsidiaries). Examples: Real Estate, Automotive, Hospitality, Finance,
+  Food & Beverage, Technology.
+
+  For press_mentions_count, count distinct news articles or media mentions from
+  third-party sources in the search results. Do NOT count the company's own press
+  releases or blog posts. Cap at 30 — if more than 30 found, return 30.
+
+  For award_mentions_count, count industry awards, formal rankings (e.g. Forbes,
+  Retail ME Top 50), or government recognition. Count each distinct award as 1
+  even if mentioned in multiple articles.
+
+  For annual_revenue_usd, apply this source hierarchy (highest to lowest confidence):
+    1. Annual report or audited financial statements
+    2. Company website — investor relations or About page with stated revenue/turnover
+    3. Financial aggregators or business press (Bloomberg, Reuters, Forbes, regional press)
+    4. Any web mention of revenue, turnover, or sales figures
+  Always output in USD. If the source gives a local currency (AED, SAR, KWD, GBP, EUR,
+  or other), convert using approximate current exchange rates — do not leave null because
+  the figure is in a non-USD currency. Round to the nearest $1,000,000.
+  Use the most recent available figure even if it is from a prior year — a stale estimate
+  is better than null. If multiple figures conflict, prefer the higher-authority source.
+
+
 # Search queries used in Stage 2 (overrides defaults if present)
 search_queries:
-  - "{name} retail company overview UAE"
+  - "{name} retail company overview {country}"
   - "{name} number of employees headcount"
   - "{name} CEO managing director leadership team"
-  - "{name} stores locations UAE"
-  - "{name} press news retail 2024 2025"
+  - "{name} stores locations world wise"
+  - "{name} press news retail 2024 2025 2026"
   - "{name} founded history brand"
-  - "{name} DED trade license retail"
-  - "{name} revenue annual report"
+  - "{name} annual revenue turnover financial results"
   - "{name} executives directors board"
+  - "{name} business divisions subsidiaries sectors"
 
 # Sector metadata fields to extract via LLM
 sector_metadata_schema:
-  store_count: "integer | null — number of retail locations"
+  store_count: "integer | null — number of retail locations; use best estimate if source says 'over 300' use 300, 'around 50' use 50 — do not leave null just because the number is approximate"
   store_formats: "list[string] | null — e.g. hypermarket, supermarket, specialty"
   brands_owned: "list[string] | null — brand names operated by this company"
   ded_license_confirmed: "boolean | null — whether DED trade license was found in sources"
   mall_presence: "list[string] | null — mall names where they operate"
+  annual_revenue_usd: "integer | null — most recent annual revenue in USD (see extraction-guidance for source hierarchy and currency conversion rules)"
+  sector_concentration: "string | null — one of: primary, secondary, diversified — how central is Retailers to this company's core business"
+  other_sectors: "list[string] | null — other major business sectors this company significantly operates in (e.g. Real Estate, Automotive, Hospitality)"
+  press_mentions_count: "integer | null — count of distinct press/news articles mentioning this company found in search results (exclude the company's own press releases)"
+  award_mentions_count: "integer | null — count of industry awards, rankings, or formal recognitions found (e.g. 'Best Retailer', Forbes listing, industry award)"
 
 sub_sector_gate:
   enabled: false
@@ -37,78 +80,40 @@ dimensions:
     cold_start_weight: 0.35
     signals:
       - name: headcount
-        weight: 0.60
+        weight: 0.50
         extraction_field: headcount_range
-        source_config:
-          AE:
-            - linkedin
-            - ded_register
-          _default:
-            - linkedin
-            - website
       - name: location_count
-        weight: 0.40
-        extraction_field: sector_metadata.store_count
-        source_config:
-          AE:
-            - mall_tenant_list
-            - company_website
-          _default:
-            - company_website
-            - press
-
-  - key: leadership_depth
-    label: Leadership Depth
-    default_weight: 0.35
-    cold_start_weight: 0.35
-    signals:
-      - name: named_executives
-        weight: 0.70
-        extraction_field: leadership_names
-        source_config:
-          AE:
-            - linkedin
-            - company_website
-          _default:
-            - linkedin
-            - press
-      - name: functional_breadth
         weight: 0.30
-        extraction_field: leadership_names
-        source_config:
-          _default:
-            - linkedin
-            - company_website
+        extraction_field: sector_metadata.store_count
+      - name: annual_revenue
+        weight: 0.20
+        extraction_field: sector_metadata.annual_revenue_usd
 
   - key: sector_fit_confidence
     label: Sector Fit Confidence
     default_weight: 0.30
     cold_start_weight: 0.30
     signals:
-      - name: regulatory_confirmation
-        weight: 0.60
-        extraction_field: sector_metadata.ded_license_confirmed
-        source_config:
-          AE:
-            - ded_register
-            - adgm_register
-          _default:
-            - website_description
-            - press
-      - name: sector_description_match
-        weight: 0.40
-        extraction_field: description_clean
-        source_config:
-          _default:
-            - website_description
-            - press
+      - name: sector_dominance
+        weight: 1.0
+        extraction_field: sector_metadata.sector_concentration
 
-  # Placeholders — will be activated post-MVP once data is available
-  - key: brand_prominence
+  - key: brand_market_prominence
     label: Brand & Market Prominence
-    default_weight: 0.0
-    cold_start_weight: 0.0
-    signals: []
+    default_weight: 0.35
+    cold_start_weight: 0.35
+    signals:
+      - name: press_coverage
+        weight: 0.55
+        extraction_field: sector_metadata.press_mentions_count
+      - name: awards_recognition
+        weight: 0.25
+        extraction_field: sector_metadata.award_mentions_count
+      - name: named_leadership
+        weight: 0.20
+        extraction_field: leadership_names
+
+  # Placeholder — will be activated post-MVP once data is available
 
   - key: talent_export_history
     label: Talent Export History

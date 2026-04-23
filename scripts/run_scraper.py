@@ -187,10 +187,13 @@ async def run_enrich(
     try:
         sector_config = load_sector_config(sector, settings.scoring_config_dir)
         metadata_schema = get_sector_metadata_schema(sector_config)
+        query_templates: list[str] | None = sector_config.search_queries or None
+        llm_guidance: str | None = sector_config.llm_guidance or None
         log.info("sector_config_loaded", config_id=sector_config.config_id)
     except Exception as exc:
         log.error("sector_config_error", error=str(exc))
         metadata_schema = None
+        query_templates = None
 
     # Fetch companies to enrich
     companies = await detail_repo.get_companies_to_enrich_async(
@@ -233,7 +236,12 @@ async def run_enrich(
         ),
     )
     runner = EnrichmentRunner(pipeline, concurrency=settings.enrichment_concurrency)
-    summary = await runner.run_batch(companies, sector_metadata_schema=metadata_schema)
+    summary = await runner.run_batch(
+        companies,
+        sector_metadata_schema=metadata_schema,
+        query_templates=query_templates,
+        llm_guidance=llm_guidance,
+    )
     log.info("enrich_complete", **summary)
 
 

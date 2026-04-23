@@ -187,7 +187,6 @@ class SignalDefinition(BaseModel):
 
     name: str
     weight: float
-    source_config: dict[str, list[str]] = Field(default_factory=dict)
     extraction_field: str | None = None
 
 
@@ -222,3 +221,4 @@ class SectorScoringConfig(BaseModel):
         default_factory=SubSectorGateConfig
     )
     search_queries: list[str] = Field(default_factory=list)
+    llm_guidance: str | None = None

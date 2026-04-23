@@ -9,7 +9,6 @@ from hak_talent_mapping.core.models import (
 )
 from hak_talent_mapping.services.enrichment.scoring.engine import ScoringEngine
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -30,14 +29,14 @@ def retailers_config() -> SectorScoringConfig:
                 default_weight=0.35,
             ),
             DimensionConfig(
-                key="leadership_depth",
-                label="Leadership Depth",
-                default_weight=0.35,
-            ),
-            DimensionConfig(
                 key="sector_fit_confidence",
                 label="Sector Fit Confidence",
                 default_weight=0.30,
+            ),
+            DimensionConfig(
+                key="brand_market_prominence",
+                label="Brand & Market Prominence",
+                default_weight=0.35,
             ),
         ],
     )
@@ -55,6 +54,9 @@ def _profile(
     leadership_names: list[str] | None = None,
     ded_confirmed: bool | None = None,
     description: str = "",
+    press_mentions_count: int | None = None,
+    award_mentions_count: int | None = None,
+    sector_concentration: str | None = None,
 ) -> dict:
     sector_meta: dict = {}
     if store_count is not None:
@@ -63,6 +65,12 @@ def _profile(
         sector_meta["ded_license_confirmed"] = ded_confirmed
     if leadership_names is not None:
         sector_meta["leadership_names"] = leadership_names
+    if press_mentions_count is not None:
+        sector_meta["press_mentions_count"] = press_mentions_count
+    if award_mentions_count is not None:
+        sector_meta["award_mentions_count"] = award_mentions_count
+    if sector_concentration is not None:
+        sector_meta["sector_concentration"] = sector_concentration
     return {
         "id": "detail-uuid-123",
         "company_id": "cid-001",
@@ -122,39 +130,65 @@ def test_scale_score_capped_at_ten(engine: ScoringEngine) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Leadership Depth
+# Brand & Market Prominence (D4)
 # ---------------------------------------------------------------------------
 
 
-def test_leadership_zero_executives(engine: ScoringEngine) -> None:
-    profile = _profile(leadership_names=[])
+def test_brand_prominence_zero_signals(engine: ScoringEngine) -> None:
+    profile = _profile()
     record = engine.score(profile)
-    depth = record.dimension_scores["leadership_depth"]
-    assert depth.score == 0.0
-    assert depth.source_level == "none"
+    d4 = record.dimension_scores["brand_market_prominence"]
+    assert d4.score == 0.0
+    assert d4.source_level == "none"
+    assert d4.confidence_band == "wide"
 
 
-def test_leadership_one_executive(engine: ScoringEngine) -> None:
-    profile = _profile(leadership_names=["CEO Alice"])
+def test_brand_prominence_leadership_only(engine: ScoringEngine) -> None:
+    """Named executives alone give a non-zero score with secondary confidence."""
+    profile = _profile(leadership_names=["CEO", "CFO", "COO", "CMO", "CHRO"])
     record = engine.score(profile)
-    depth = record.dimension_scores["leadership_depth"]
-    assert depth.score == 2.0
+    d4 = record.dimension_scores["brand_market_prominence"]
+    # 5 executives → leadership_score=7.0; D4 = 7.0 * 0.20 = 1.4
+    assert d4.score == pytest.approx(1.4)
+    assert d4.source_level == "secondary"
+    assert d4.confidence_band == "medium"
+    assert "named_executives" in d4.evidence
 
 
-def test_leadership_five_executives(engine: ScoringEngine) -> None:
-    names = ["CEO", "CFO", "COO", "CMO", "CHRO"]
-    profile = _profile(leadership_names=names)
+def test_brand_prominence_press_and_leadership(engine: ScoringEngine) -> None:
+    """Press coverage + leadership should combine correctly."""
+    profile = _profile(press_mentions_count=6, leadership_names=["CEO", "CFO", "COO"])
     record = engine.score(profile)
-    depth = record.dimension_scores["leadership_depth"]
-    assert depth.score == 7.0
+    d4 = record.dimension_scores["brand_market_prominence"]
+    # press=7.5*0.55=4.125, leadership(3 names)=5.0*0.20=1.0 → 5.125
+    assert d4.score == pytest.approx(5.12, abs=0.05)
+    assert d4.source_level == "fallback"
 
 
-def test_leadership_many_executives(engine: ScoringEngine) -> None:
-    names = [f"Exec {i}" for i in range(15)]
-    profile = _profile(leadership_names=names)
+def test_brand_prominence_all_signals(engine: ScoringEngine) -> None:
+    """All three signals present: press + awards + leadership."""
+    profile = _profile(
+        press_mentions_count=3,
+        award_mentions_count=1,
+        leadership_names=["CEO", "CFO", "COO", "CMO", "CHRO"],
+    )
     record = engine.score(profile)
-    depth = record.dimension_scores["leadership_depth"]
-    assert depth.score <= 10.0
+    d4 = record.dimension_scores["brand_market_prominence"]
+    # press=5.5*0.55=3.025, awards=4.0*0.25=1.0, leadership(5)=7.0*0.20=1.4 → 5.425
+    assert d4.score == pytest.approx(5.43, abs=0.05)
+    assert d4.score > 0
+    assert "press_mentions_count" in d4.evidence
+    assert "award_mentions_count" in d4.evidence
+    assert "named_executives" in d4.evidence
+
+
+def test_brand_prominence_large_company_no_leadership(engine: ScoringEngine) -> None:
+    """A large private company with press but 0 named executives still scores > 0."""
+    profile = _profile(press_mentions_count=15)
+    record = engine.score(profile)
+    d4 = record.dimension_scores["brand_market_prominence"]
+    # press=9.0*0.55=4.95, no leadership → 4.95
+    assert d4.score == pytest.approx(4.95)
 
 
 # ---------------------------------------------------------------------------
@@ -162,37 +196,35 @@ def test_leadership_many_executives(engine: ScoringEngine) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_fit_ded_confirmed(engine: ScoringEngine) -> None:
-    profile = _profile(ded_confirmed=True)
-    record = engine.score(profile, country_code="AE")
-    fit = record.dimension_scores["sector_fit_confidence"]
-    assert fit.score >= 9.0
-    assert fit.source_level == "primary"
-    assert fit.confidence_band == "tight"
+def test_fit_primary_concentration(engine: ScoringEngine) -> None:
+    profile = _profile(sector_concentration="primary")
+    fit = engine.score(profile).dimension_scores["sector_fit_confidence"]
+    assert fit.score == pytest.approx(10.0)
+    assert fit.source_level == "secondary"
+    assert fit.confidence_band == "medium"
 
 
-def test_fit_description_strong_match(engine: ScoringEngine) -> None:
-    profile = _profile(
-        description="A leading retail store chain with fashion and home brands."
-    )
-    record = engine.score(profile)
-    fit = record.dimension_scores["sector_fit_confidence"]
-    assert fit.score >= 6.0
-
-
-def test_fit_description_weak_match(engine: ScoringEngine) -> None:
-    profile = _profile(description="A technology company providing SaaS solutions.")
-    record = engine.score(profile)
-    fit = record.dimension_scores["sector_fit_confidence"]
-    assert fit.score <= 5.0
+def test_fit_secondary_concentration(engine: ScoringEngine) -> None:
+    profile = _profile(sector_concentration="secondary")
+    fit = engine.score(profile).dimension_scores["sector_fit_confidence"]
+    assert fit.score == pytest.approx(6.0)
     assert fit.confidence_band == "wide"
 
 
-def test_fit_no_signals(engine: ScoringEngine) -> None:
+def test_fit_diversified_not_penalised(engine: ScoringEngine) -> None:
+    """Diversified conglomerates score same as secondary — scale is measured by D1."""
+    profile = _profile(sector_concentration="diversified")
+    fit = engine.score(profile).dimension_scores["sector_fit_confidence"]
+    assert fit.score == pytest.approx(6.0)
+    assert fit.confidence_band == "wide"
+
+
+def test_fit_null_concentration(engine: ScoringEngine) -> None:
+    """When LLM can't confirm retail presence, apply 3.0 uncertainty penalty."""
     profile = _profile()
-    record = engine.score(profile)
-    fit = record.dimension_scores["sector_fit_confidence"]
-    assert fit.score == 0.0
+    fit = engine.score(profile).dimension_scores["sector_fit_confidence"]
+    assert fit.score == pytest.approx(3.0)
+    assert fit.confidence_band == "wide"
 
 
 # ---------------------------------------------------------------------------
@@ -204,16 +236,20 @@ def test_base_score_in_range(engine: ScoringEngine) -> None:
     profile = _profile(
         headcount_exact=5000,
         leadership_names=["CEO", "CFO", "COO"],
-        ded_confirmed=True,
+        press_mentions_count=8,
+        award_mentions_count=2,
     )
     record = engine.score(profile, country_code="AE")
     assert 0.0 <= record.base_score <= 100.0
+    assert "brand_market_prominence" in record.dimension_scores
 
 
-def test_base_score_zero_when_no_signals(engine: ScoringEngine) -> None:
+def test_base_score_null_sector_only_when_no_signals(engine: ScoringEngine) -> None:
+    """With no org/brand signals, only the null sector-fit penalty contributes."""
+    # D1=0, D3 null=3.0×0.30=0.9, D4=0 → base = 0.9/1.0 × 10 = 9.0
     profile = _profile()
     record = engine.score(profile)
-    assert record.base_score == 0.0
+    assert record.base_score == pytest.approx(9.0)
 
 
 def test_overall_band_is_worst_dimension(engine: ScoringEngine) -> None:
@@ -226,9 +262,14 @@ def test_overall_band_is_worst_dimension(engine: ScoringEngine) -> None:
 def test_overall_band_tight_when_all_primary(engine: ScoringEngine) -> None:
     # Only sector fit with DED (tight) — other dims are wide → overall wide
     # To get all-tight, all dims would need primary sources
-    profile = _profile(ded_confirmed=True, headcount_exact=10000, leadership_names=["CEO", "CFO"])
+    profile = _profile(
+        ded_confirmed=True,
+        headcount_exact=10000,
+        leadership_names=["CEO", "CFO"],
+        press_mentions_count=5,
+    )
     record = engine.score(profile, country_code="AE")
-    # headcount and leadership use "secondary" → overall is at best medium
+    # headcount and press/awards use "secondary"/"fallback" → overall is at best medium
     assert record.overall_confidence_band in ("medium", "wide")
 
 

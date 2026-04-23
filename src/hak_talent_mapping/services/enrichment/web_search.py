@@ -43,13 +43,24 @@ class SerperSearchService:
         name: str,
         sector: str,
         country: str = "",
+        query_templates: list[str] | None = None,
     ) -> list[dict[str, Any]]:
         """Run all query templates for a company and return aggregated results.
+
+        Args:
+            name: Company name.
+            sector: Sector string interpolated into default templates.
+            country: Country string interpolated into default templates.
+            query_templates: Sector-specific templates from YAML. When provided,
+                these replace the default _QUERY_TEMPLATES entirely.
 
         Returns a list of result objects, one per query, each containing
         the query string and a list of organic result snippets.
         """
-        templates = _QUERY_TEMPLATES[: self._queries_per_company]
+        if query_templates:
+            templates = query_templates
+        else:
+            templates = _QUERY_TEMPLATES[: self._queries_per_company]
         all_results: list[dict[str, Any]] = []
 
         async with build_async_client(timeout=20.0) as client:
