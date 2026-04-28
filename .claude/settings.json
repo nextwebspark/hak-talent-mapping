@@ -1,8 +1,5 @@
 {
   "permissions": {
-    "additionalDirectories": [
-      "/Users/alokkumar/dev/hak-talent-mapping"
-    ],
     "allow": [
       "Bash(python *)",
       "Bash(uv *)",
@@ -15,6 +12,12 @@
       "Bash(git diff*)",
       "Bash(git log*)",
       "Bash(git branch*)"
+    ],
+    "additionalDirectories": [
+      "/Users/alokkumar/dev/hak-talent-mapping",
+      "/Users/alokkumar/dev/hak-talent-agent/src/hak_talent_agent",
+      "/Users/alokkumar/dev/hak-talent-agent/scripts",
+      "/Users/alokkumar/dev/hak-talent-agent/scoring_configs"
     ]
   }
 }

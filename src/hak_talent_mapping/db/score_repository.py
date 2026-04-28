@@ -79,27 +79,6 @@ class ScoreRepository:
                 f"Failed to fetch scores for detail {company_detail_id}"
             ) from exc
 
-    def get_unvectorized(
-        self,
-        scoring_config_id: str,
-        limit: int = 1000,
-    ) -> list[dict[str, Any]]:
-        """Return score records whose parent detail has not been synced to Pinecone."""
-        try:
-            response = (
-                self._client.table(_TABLE)
-                .select("*, company_details!inner(id,pinecone_synced_at,sector,country_code)")
-                .eq("scoring_config_id", scoring_config_id)
-                .is_("company_details.pinecone_synced_at", "null")
-                .limit(limit)
-                .execute()
-            )
-            return response.data or []
-        except Exception as exc:
-            raise DatabaseError(
-                "Failed to fetch unvectorized score records"
-            ) from exc
-
     # ------------------------------------------------------------------ #
     # Async wrappers                                                       #
     # ------------------------------------------------------------------ #

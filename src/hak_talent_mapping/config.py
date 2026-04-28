@@ -23,8 +23,6 @@ class Settings(BaseSettings):
     detail_concurrency: int = 3
     request_delay_min: float = 1.0
     request_delay_max: float = 3.0
-    max_retries: int = 3
-
     # Feature flags
     scrape_details: bool = True
 
@@ -38,8 +36,6 @@ class Settings(BaseSettings):
     # Concurrency for enrichment workers (stages 1-5)
     enrichment_concurrency: int = 3
 
-    # Search provider: "serper" (Google via serper.dev)
-    search_provider: str = "serper"
     serper_api_key: str = ""
     search_queries_per_company: int = 10
 
@@ -55,6 +51,9 @@ class Settings(BaseSettings):
     # OpenRouter model ID for embeddings (same API key, different endpoint path)
     pinecone_embedding_model: str = "openai/text-embedding-3-small"
     pinecone_upsert_batch_size: int = 100
+
+    perplexity_api_key: str = ""
+    perplexity_model: str = "sonar-pro"
 
     # Scoring
     scoring_config_dir: str = "scoring_configs"

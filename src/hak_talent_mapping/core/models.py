@@ -144,6 +144,9 @@ class CompanyProfile(BaseModel):
     # Sector-specific extracted data
     sector_metadata: dict[str, Any] = Field(default_factory=dict)
 
+    # Full raw LLM extraction JSON for audit/debugging
+    raw_llm_extraction: dict[str, Any] | None = None
+
     # Enrichment pipeline state
     enrichment_status: EnrichmentStatus = EnrichmentStatus.PENDING
     enrichment_error: str | None = None

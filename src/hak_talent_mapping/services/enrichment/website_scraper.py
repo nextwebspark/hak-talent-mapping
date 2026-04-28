@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import re
 from typing import Any
 from urllib.parse import urljoin, urlparse
@@ -25,6 +26,13 @@ _TARGET_PATHS: list[str] = [
 ]
 
 _MIN_TEXT_LENGTH = 100  # ignore pages with very little text
+
+_PRIVATE_PREFIXES = (
+    "10.", "172.16.", "172.17.", "172.18.", "172.19.", "172.20.", "172.21.",
+    "172.22.", "172.23.", "172.24.", "172.25.", "172.26.", "172.27.", "172.28.",
+    "172.29.", "172.30.", "172.31.", "192.168.", "127.", "169.254.", "::1",
+    "fc00:", "fd",
+)
 
 
 class WebsiteScrapeResult:
@@ -62,8 +70,23 @@ class WebsiteScraper:
         if not website_url:
             return result
 
-        base_url = _normalize_base_url(website_url)
+        try:
+            base_url = _normalize_base_url(website_url)
+        except EnrichmentError as exc:
+            logger.warning("website_url_blocked", url=website_url, reason=str(exc))
+            return result
 
+        # Hard cap: entire scrape must finish within 2x the per-page timeout
+        overall_timeout = (self._timeout / 1000) * 2 + 10
+        try:
+            return await asyncio.wait_for(
+                self._scrape_inner(base_url, result), timeout=overall_timeout
+            )
+        except asyncio.TimeoutError:
+            logger.warning("website_scrape_timeout", url=base_url, timeout_s=overall_timeout)
+            return result
+
+    async def _scrape_inner(self, base_url: str, result: WebsiteScrapeResult) -> WebsiteScrapeResult:
         async with async_playwright() as pw:
             browser: Browser = await pw.chromium.launch(headless=True)
             try:
@@ -110,11 +133,16 @@ class WebsiteScraper:
 
 
 def _normalize_base_url(url: str) -> str:
-    """Ensure URL has a scheme."""
+    """Ensure URL has an http/https scheme and is not a private/internal address."""
     url = url.strip()
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
     parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise EnrichmentError(f"Blocked non-http URL scheme: {parsed.scheme}")
+    host = parsed.hostname or ""
+    if any(host.startswith(p) for p in _PRIVATE_PREFIXES) or host in ("localhost",):
+        raise EnrichmentError(f"Blocked private/internal host: {host}")
     return f"{parsed.scheme}://{parsed.netloc}"
 
 

@@ -129,7 +129,7 @@ class DetailRepository:
             "headcount_exact": profile.headcount_exact,
             "founded_year": profile.founded_year,
             "sector_metadata": profile.sector_metadata,
-            "raw_llm_extraction": profile.sector_metadata,
+            "raw_llm_extraction": profile.raw_llm_extraction,
             "enrichment_status": EnrichmentStatus.LLM_EXTRACTED.value,
         }
         try:

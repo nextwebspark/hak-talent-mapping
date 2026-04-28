@@ -19,7 +19,6 @@ from hak_talent_mapping.db.detail_repository import DetailRepository
 from hak_talent_mapping.services.enrichment.web_search import SerperSearchService
 from hak_talent_mapping.services.enrichment.website_scraper import WebsiteScraper
 from hak_talent_mapping.services.llm.base import LLMProvider
-from hak_talent_mapping.services.llm.openrouter_provider import OpenRouterProvider
 
 logger = structlog.get_logger()
 
@@ -38,7 +37,7 @@ class EnrichmentPipeline:
         self,
         settings: Settings,
         detail_repo: DetailRepository,
-        search_service: SerperSearchService,
+        search_service: SerperSearchService | None,
         website_scraper: WebsiteScraper,
         llm_provider: LLMProvider,
         audit_repo: AuditRepository | None = None,
@@ -110,7 +109,11 @@ class EnrichmentPipeline:
 
         # --- Stage 2: Web Search ---
         search_results: list[dict[str, Any]] = []
-        if current_status == EnrichmentStatus.PENDING:
+        if self._search is None:
+            # Search skipped — provider (e.g. Perplexity) handles its own retrieval
+            current_status = EnrichmentStatus.WEB_SEARCH_DONE
+            log.info("web_search_skipped_provider_handles_retrieval")
+        elif current_status == EnrichmentStatus.PENDING:
             try:
                 search_results = await self._search.search_company(
                     name=name,
@@ -141,7 +144,11 @@ class EnrichmentPipeline:
 
         # --- Stage 3: Website Scrape ---
         website_text = ""
-        if current_status == EnrichmentStatus.WEB_SEARCH_DONE:
+        if self._search is None:
+            # Scrape skipped — provider handles its own web retrieval
+            current_status = EnrichmentStatus.WEBSITE_SCRAPED
+            log.info("website_scrape_skipped_provider_handles_retrieval")
+        elif current_status == EnrichmentStatus.WEB_SEARCH_DONE:
             try:
                 scrape_result = await self._scraper.scrape(website)
                 website_text = scrape_result.combined_text()
@@ -189,19 +196,29 @@ class EnrichmentPipeline:
                     "llm_extracted",
                     confidence=extraction.extraction_confidence,
                 )
-                if self._audit and isinstance(self._llm, OpenRouterProvider):
+                if self._audit and hasattr(self._llm, "last_system_prompt"):
+                    from hak_talent_mapping.services.llm.perplexity_provider import (
+                        PerplexityProvider,
+                    )
+
+                    request_data: dict[str, Any] = {
+                        "system_prompt": self._llm.last_system_prompt,
+                        "user_prompt": self._llm.last_user_prompt,
+                    }
+                    response_data: dict[str, Any] = {
+                        "raw_response": self._llm.last_raw_response,
+                        "parsed": extraction.model_dump(),
+                    }
+                    if isinstance(self._llm, PerplexityProvider):
+                        response_data["sector_meta_raw"] = self._llm.last_sector_meta_raw
+                        response_data["leadership_raw"] = self._llm.last_leadership_raw
+
                     await self._audit.log_event_async(
                         company_detail_id=detail_id,
                         stage="llm_extraction",
                         event_type="llm_call",
-                        request_data={
-                            "system_prompt": self._llm.last_system_prompt,
-                            "user_prompt": self._llm.last_user_prompt,
-                        },
-                        response_data={
-                            "raw_response": self._llm.last_raw_response,
-                            "parsed": extraction.model_dump(),
-                        },
+                        request_data=request_data,
+                        response_data=response_data,
                     )
             except Exception as exc:
                 log.error("stage4_failed", error=str(exc))
@@ -268,6 +285,7 @@ def _build_profile_from_extraction(
         headcount_exact=extraction.headcount_exact,
         founded_year=extraction.founded_year,
         sector_metadata=sector_metadata,
+        raw_llm_extraction=extraction.model_dump(),
         enrichment_status=EnrichmentStatus.LLM_EXTRACTED,
     )
 
