@@ -35,3 +35,4 @@ playwright/.auth/
 
 # Logs
 *.log
+local_test.db

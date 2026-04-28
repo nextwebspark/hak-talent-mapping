@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from typing import Any
 
 import structlog
@@ -14,7 +13,7 @@ from tenacity import (
 
 from hak_talent_mapping.core.exceptions import LLMExtractionError
 from hak_talent_mapping.core.models import ProfileExtractionResult
-from hak_talent_mapping.services.llm.base import LLMProvider
+from hak_talent_mapping.services.llm.base import LLMProvider, parse_llm_json
 from hak_talent_mapping.services.llm.prompts import build_system_prompt, build_user_prompt
 
 logger = structlog.get_logger()
@@ -111,28 +110,4 @@ class OpenRouterProvider(LLMProvider):
             tokens_out=usage.completion_tokens if usage else 0,
         )
 
-        return _parse_extraction(raw_text.strip(), company_name)
-
-
-def _parse_extraction(raw_text: str, company_name: str) -> ProfileExtractionResult:
-    """Parse JSON from LLM response into ProfileExtractionResult."""
-    text = raw_text
-    if text.startswith("```"):
-        text = text.split("```", 2)[1]
-        if text.startswith("json"):
-            text = text[4:]
-        text = text.rsplit("```", 1)[0].strip()
-
-    try:
-        data = json.loads(text)
-    except json.JSONDecodeError as exc:
-        raise LLMExtractionError(
-            f"LLM returned invalid JSON for {company_name}: {exc}\nRaw: {raw_text[:200]}"
-        ) from exc
-
-    try:
-        return ProfileExtractionResult.model_validate(data)
-    except Exception as exc:
-        raise LLMExtractionError(
-            f"ProfileExtractionResult validation failed for {company_name}: {exc}"
-        ) from exc
+        return parse_llm_json(raw_text.strip(), company_name)

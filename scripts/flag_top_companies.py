@@ -18,7 +18,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import logging
 import re
 import sys
 from pathlib import Path
@@ -30,6 +29,7 @@ from supabase import create_client
 sys.path.insert(0, "src")
 
 from hak_talent_mapping.config import Settings
+from _enrich_common import configure_logging
 
 # Suffixes to strip before fuzzy name comparison
 _STRIP_SUFFIXES = re.compile(
@@ -41,18 +41,7 @@ _STRIP_SUFFIXES = re.compile(
 _PAGE_SIZE = 1000
 
 
-def _configure_logging() -> None:
-    structlog.configure(
-        processors=[
-            structlog.stdlib.add_log_level,
-            structlog.processors.TimeStamper(fmt="iso"),
-            structlog.dev.ConsoleRenderer(),
-        ],
-        wrapper_class=structlog.stdlib.BoundLogger,
-        context_class=dict,
-        logger_factory=structlog.PrintLoggerFactory(),
-    )
-    logging.basicConfig(level=logging.WARNING)
+
 
 
 def _parse_slug_list(list_path: Path) -> list[str]:
@@ -124,7 +113,7 @@ def _flag_companies(
 
 
 def main() -> None:
-    _configure_logging()
+    configure_logging()
     log = structlog.get_logger()
 
     parser = argparse.ArgumentParser(

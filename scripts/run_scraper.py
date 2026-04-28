@@ -21,10 +21,11 @@ Usage:
     # Run both phases end-to-end
     python scripts/run_scraper.py all
 
-    # Phase 3: enrich top_company=true companies (stages 1-5)
-    python scripts/run_scraper.py enrich --country AE --sector Retailers
-    python scripts/run_scraper.py enrich --country AE --sector Retailers --limit 5
-    python scripts/run_scraper.py enrich --country AE --sector Retailers --re-enrich
+    # Phase 3: enrich companies — use dedicated scripts instead:
+    #   Perplexity (grounded search + LLM in one call):
+    #     python scripts/run_enrich_perplexity.py --country AE --sector Retailers
+    #   Web + LLM (Serper search + OpenRouter):
+    #     python scripts/run_enrich_web.py --country AE --sector Retailers
 
     # Phase 3: score profile_complete companies (stage 6)
     python scripts/run_scraper.py score --country AE --sector Retailers
@@ -36,7 +37,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import logging
 import sys
 
 import structlog
@@ -47,45 +47,20 @@ sys.path.insert(0, "src")
 
 from hak_talent_mapping.config import Settings
 from hak_talent_mapping.core.models import Company, CompanyDetail
-from hak_talent_mapping.db.audit_repository import AuditRepository
 from hak_talent_mapping.db.detail_repository import DetailRepository
 from hak_talent_mapping.db.repository import CompanyRepository
 from hak_talent_mapping.db.score_repository import ScoreRepository
 from hak_talent_mapping.services.detail_scraper import scrape_all_details
-from hak_talent_mapping.services.enrichment.pipeline import (
-    EnrichmentPipeline,
-    EnrichmentRunner,
-)
-from hak_talent_mapping.services.enrichment.scoring.config_loader import (
-    get_sector_metadata_schema,
-    load_sector_config,
-)
+from hak_talent_mapping.services.enrichment.scoring.config_loader import load_sector_config
 from hak_talent_mapping.services.enrichment.scoring.engine import ScoringEngine
-from hak_talent_mapping.services.enrichment.web_search import SerperSearchService
-from hak_talent_mapping.services.enrichment.website_scraper import WebsiteScraper
 from hak_talent_mapping.services.listing_scraper import scrape_listings
-from hak_talent_mapping.services.llm.openrouter_provider import OpenRouterProvider
 from hak_talent_mapping.services.vector.embeddings import OpenAIEmbeddingProvider
 from hak_talent_mapping.services.vector.pinecone_store import (
     PineconeStore,
     VectorizationRunner,
 )
 
-
-def _configure_logging() -> None:
-    structlog.configure(
-        processors=[
-            structlog.stdlib.add_log_level,
-            structlog.processors.TimeStamper(fmt="iso"),
-            structlog.dev.ConsoleRenderer(),
-        ],
-        wrapper_class=structlog.stdlib.BoundLogger,
-        context_class=dict,
-        logger_factory=structlog.PrintLoggerFactory(),
-    )
-    logging.basicConfig(level=logging.WARNING)
-    # Suppress noisy asyncio pipe-closed warnings from Playwright browser shutdown
-    logging.getLogger("asyncio").setLevel(logging.ERROR)
+from _enrich_common import configure_logging
 
 
 async def run_listings(
@@ -153,106 +128,27 @@ async def run_all(
         await run_details(settings, repo, limit=limit)
 
 
-async def run_enrich(
+
+async def run_score(
     country: str,
     sector: str,
     settings: Settings,
-    limit: int | None = None,
-    re_enrich: bool = False,
+    test_mode: bool = False,
+    db_path: str = "local_test.db",
 ) -> None:
-    """Phase 3 Stage 1-5: enrich top_company=true companies."""
-    from supabase import create_client
-
-    log = structlog.get_logger()
-    supabase_client = create_client(settings.supabase_url, settings.supabase_key)
-    detail_repo = DetailRepository(supabase_client)
-    audit_repo = AuditRepository(supabase_client)
-
-    # Validate API keys
-    if not settings.serper_api_key:
-        log.error("missing_serper_api_key", hint="Set SERPER_API_KEY in .env")
-        sys.exit(1)
-    if not settings.openrouter_api_key:
-        log.error("missing_openrouter_api_key", hint="Set OPENROUTER_API_KEY in .env")
-        sys.exit(1)
-
-    # Reset profile_complete rows back to pending so they get re-processed
-    if re_enrich:
-        supabase_client.table("company_details").update(
-            {"enrichment_status": "pending", "enrichment_error": None}
-        ).eq("sector", sector).eq("enrichment_status", "profile_complete").execute()
-        log.info("re_enrich_reset", sector=sector, country=country)
-
-    # Load sector config
-    try:
-        sector_config = load_sector_config(sector, settings.scoring_config_dir)
-        metadata_schema = get_sector_metadata_schema(sector_config)
-        query_templates: list[str] | None = sector_config.search_queries or None
-        llm_guidance: str | None = sector_config.llm_guidance or None
-        log.info("sector_config_loaded", config_id=sector_config.config_id)
-    except Exception as exc:
-        log.error("sector_config_error", error=str(exc))
-        metadata_schema = None
-        query_templates = None
-
-    # Fetch companies to enrich
-    companies = await detail_repo.get_companies_to_enrich_async(
-        sector=sector,
-        country_code=country,
-        top_only=settings.enrich_top_only,
-        limit=limit,
-    )
-
-    if not companies:
-        log.info("no_companies_to_enrich", sector=sector, country=country, top_only=settings.enrich_top_only)
-        return
-
-    # Inject country_code (CLI arg) into each company dict — the companies table
-    # stores full country names, not codes, so country_code is missing from the query.
-    for company in companies:
-        company["country_code"] = country
-
-    log.info(
-        "enrich_start",
-        company_count=len(companies),
-        sector=sector,
-        country=country,
-        top_only=settings.enrich_top_only,
-    )
-
-    pipeline = EnrichmentPipeline(
-        settings=settings,
-        detail_repo=detail_repo,
-        audit_repo=audit_repo,
-        search_service=SerperSearchService(
-            api_key=settings.serper_api_key,
-            queries_per_company=settings.search_queries_per_company,
-        ),
-        website_scraper=WebsiteScraper(timeout=settings.website_scrape_timeout),
-        llm_provider=OpenRouterProvider(
-            api_key=settings.openrouter_api_key,
-            model=settings.llm_model,
-            base_url=settings.openrouter_base_url,
-        ),
-    )
-    runner = EnrichmentRunner(pipeline, concurrency=settings.enrichment_concurrency)
-    summary = await runner.run_batch(
-        companies,
-        sector_metadata_schema=metadata_schema,
-        query_templates=query_templates,
-        llm_guidance=llm_guidance,
-    )
-    log.info("enrich_complete", **summary)
-
-
-async def run_score(country: str, sector: str, settings: Settings) -> None:
     """Phase 3 Stage 6: score all profile_complete companies."""
     from supabase import create_client
 
     log = structlog.get_logger()
     supabase_client = create_client(settings.supabase_url, settings.supabase_key)
     detail_repo = DetailRepository(supabase_client)
-    score_repo = ScoreRepository(supabase_client)
+
+    if test_mode:
+        from hak_talent_mapping.db.local_repository import LocalScoreRepository
+        score_repo: ScoreRepository | LocalScoreRepository = LocalScoreRepository(db_path)
+        log.info("test_mode_active", db=db_path)
+    else:
+        score_repo = ScoreRepository(supabase_client)
 
     try:
         sector_config = load_sector_config(sector, settings.scoring_config_dir)
@@ -331,7 +227,7 @@ async def run_vectorize(country: str, sector: str, settings: Settings) -> None:
 
 
 def main() -> None:
-    _configure_logging()
+    configure_logging()
     log = structlog.get_logger()
 
     parser = argparse.ArgumentParser(
@@ -339,12 +235,11 @@ def main() -> None:
     )
     parser.add_argument(
         "phase",
-        choices=["listings", "details", "all", "enrich", "score", "vectorize"],
+        choices=["listings", "details", "all", "score", "vectorize"],
         help=(
             "listings: scrape company list pages only  |  "
             "details: scrape company detail pages only  |  "
             "all: run both phases  |  "
-            "enrich: Phase 3 stages 1-5 (search+scrape+LLM)  |  "
             "score: Phase 3 stage 6 (scoring)  |  "
             "vectorize: Phase 3 stage 7 (Pinecone)"
         ),
@@ -371,9 +266,16 @@ def main() -> None:
         help="Sector name to scrape (e.g. Retailers)",
     )
     parser.add_argument(
-        "--re-enrich",
+        "--test",
         action="store_true",
-        help="(enrich only) Reset status to pending and re-enrich already-enriched companies",
+        help="Read profiles from Supabase, write scores to local SQLite (score phase only)",
+    )
+    parser.add_argument(
+        "--db",
+        type=str,
+        default="local_test.db",
+        metavar="PATH",
+        help="Local SQLite path (--test only)",
     )
     args = parser.parse_args()
 
@@ -384,9 +286,6 @@ def main() -> None:
         log.error("hint", message="Copy .env.example to .env and fill in your credentials")
         sys.exit(1)
 
-    supabase_client = create_client(settings.supabase_url, settings.supabase_key)
-    repo = CompanyRepository(supabase_client)
-
     log.info(
         "scraper_starting",
         phase=args.phase,
@@ -395,6 +294,13 @@ def main() -> None:
         sector=args.sector,
     )
 
+    if args.phase in ("listings", "details", "all"):
+        supabase_client = create_client(settings.supabase_url, settings.supabase_key)
+        repo = CompanyRepository(supabase_client)
+    else:
+        supabase_client = None  # type: ignore[assignment]
+        repo = None  # type: ignore[assignment]
+
     try:
         if args.phase == "listings":
             asyncio.run(run_listings(args.country, args.sector, settings, repo))
@@ -402,18 +308,8 @@ def main() -> None:
             asyncio.run(run_details(settings, repo, limit=args.limit))
         elif args.phase == "all":
             asyncio.run(run_all(args.country, args.sector, settings, repo, limit=args.limit))
-        elif args.phase == "enrich":
-            asyncio.run(
-                run_enrich(
-                    country=args.country,
-                    sector=args.sector,
-                    settings=settings,
-                    limit=args.limit,
-                    re_enrich=getattr(args, "re_enrich", False),
-                )
-            )
         elif args.phase == "score":
-            asyncio.run(run_score(args.country, args.sector, settings))
+            asyncio.run(run_score(args.country, args.sector, settings, test_mode=args.test, db_path=args.db))
         elif args.phase == "vectorize":
             asyncio.run(run_vectorize(args.country, args.sector, settings))
     except KeyboardInterrupt:
